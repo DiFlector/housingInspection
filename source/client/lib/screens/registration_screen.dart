@@ -17,19 +17,19 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _passwordConfirmController = TextEditingController();
   final _fullNameController = TextEditingController();
   String? _error;
-  bool _isLoading = false; // Добавляем индикатор загрузки
+  bool _isLoading = false;
 
   Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
 
       setState(() {
-        _isLoading = true; // Включаем индикатор
-        _error = null;     // Сбрасываем ошибку
+        _isLoading = true;
+        _error = null;
       });
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      try { // Добавляем try-catch
+      try {
         final result = await authProvider.register(
           _usernameController.text,
           _emailController.text,
@@ -38,20 +38,20 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           _fullNameController.text,
         );
 
-        if (result == true) {
-          Navigator.of(context).pushReplacementNamed('/');
+        if (result == null) { //Изменили проверку
+          Navigator.of(context).pushReplacementNamed('/auth');
         } else {
           setState(() {
-            _error = result is String ? result : 'Registration failed'; // Показываем детальное сообщение
+            _error = result;  //  Показываем детальное сообщение об ошибке
           });
         }
       } catch (e) {
         setState(() {
-          _error = 'Registration failed: $e'; // Показываем детальную ошибку
+          _error = 'Registration failed: $e';
         });
       } finally {
         setState(() {
-          _isLoading = false; // Выключаем индикатор
+          _isLoading = false;
         });
       }
     }
@@ -129,8 +129,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 decoration: const InputDecoration(labelText: 'Full Name'),
               ),
               const SizedBox(height: 20),
-              _isLoading // Используем _isLoading
-                  ? const CircularProgressIndicator() // Показываем индикатор
+              _isLoading
+                  ? const Center(child: CircularProgressIndicator()) //  Индикатор по центру
                   : ElevatedButton(
                 onPressed: _submit,
                 child: const Text('Register'),

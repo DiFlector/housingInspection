@@ -5,6 +5,7 @@ import 'package:housing_inspection_client/providers/appeal_provider.dart';
 import 'package:housing_inspection_client/screens/appeal_create_screen.dart';
 import 'package:housing_inspection_client/providers/status_provider.dart';
 import 'package:housing_inspection_client/providers/auth_provider.dart';
+import 'package:housing_inspection_client/models/appeal.dart';
 
 class AppealListScreen extends StatefulWidget {
   const AppealListScreen({super.key});
@@ -14,10 +15,36 @@ class AppealListScreen extends StatefulWidget {
 }
 
 class _AppealListScreenState extends State<AppealListScreen> {
+  bool _isLoading = false; //  Добавляем локальный isLoading
+  String? _error; //  Добавляем сообщение об ошибке
+
   @override
   void initState() {
     super.initState();
-    Provider.of<AppealProvider>(context, listen: false).fetchAppeals();
+    _loadAppeals(); //  Вызываем _loadAppeals (см. ниже)
+  }
+
+  //  Добавляем метод _loadAppeals
+  Future<void> _loadAppeals() async {
+    setState(() {
+      _isLoading = true;
+      _error = null; //  Сбрасываем ошибку
+    });
+
+    try {
+      await Provider.of<AppealProvider>(context, listen: false)
+          .fetchAppeals()
+          .timeout(const Duration(seconds: 5)); //  Устанавливаем таймаут 5 секунд
+      // Если загрузка успешна, _error останется null, и список отобразится
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load appeals: $e'; //  Сохраняем сообщение об ошибке
+      });
+    } finally {
+      setState(() {
+        _isLoading = false; //  В любом случае выключаем isLoading
+      });
+    }
   }
 
   @override
@@ -26,6 +53,14 @@ class _AppealListScreenState extends State<AppealListScreen> {
       appBar: AppBar(
         title: const Text('Appeals'),
         actions: [
+          if (Provider.of<AuthProvider>(context, listen: false).role ==
+              'inspector')
+            IconButton(
+              icon: const Icon(Icons.people),
+              onPressed: () {
+                Navigator.pushNamed(context, '/users');
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
@@ -35,15 +70,17 @@ class _AppealListScreenState extends State<AppealListScreen> {
           ),
         ],
       ),
-      body: Consumer<AppealProvider>(  //  Используем Consumer
+      body: Consumer<AppealProvider>(
         builder: (context, appealProvider, child) {
-          //  Добавляем проверку isLoading
-          if (appealProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (appealProvider.appeals.isEmpty) {
-            return const Center(child: Text('Нет существующих обращений')); //  Сообщение, если список пуст
-          } else {
-            return ListView.builder(
+          return RefreshIndicator(
+            onRefresh: _loadAppeals, //  Используем _loadAppeals
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null //  Если есть ошибка - показываем сообщение
+                ? Center(child: Text(_error!))
+                : appealProvider.appeals.isEmpty
+                ? const Center(child: Text('Нет существующих обращений'))
+                : ListView.builder(
               itemCount: appealProvider.appeals.length,
               itemBuilder: (context, index) {
                 final appeal = appealProvider.appeals[index];
@@ -62,8 +99,8 @@ class _AppealListScreenState extends State<AppealListScreen> {
                   },
                 );
               },
-            );
-          }
+            ),
+          );
         },
       ),
       floatingActionButton: FloatingActionButton(

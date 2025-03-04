@@ -14,38 +14,37 @@ class _AuthScreenState extends State<AuthScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   String? _error;
-  bool _isLoading = false; // Добавляем индикатор загрузки
+  bool _isLoading = false;
 
   Future<void> _submit() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
-        _isLoading = true; // Включаем индикатор
-        _error = null;     // Сбрасываем предыдущую ошибку
+        _isLoading = true;
+        _error = null;
       });
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      try { // Добавляем try-catch
+      try {
         final success = await authProvider.login(
           _usernameController.text,
           _passwordController.text,
         );
 
         if (success) {
-          Navigator.of(context).pushReplacementNamed('/');
+          //  ИСПРАВЛЕННАЯ НАВИГАЦИЯ:
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false); //  ИЗМЕНЕНО
         } else {
-          //  Ошибка, но authProvider.login  и так обрабатывает это.
-          //  Тут можно добавить проверку на конкретные коды ошибок, если нужно
           setState(() {
             _error = 'Invalid username or password';
           });
         }
       } catch (e) {
         setState(() {
-          _error = 'Login failed: $e'; // Показываем детальную ошибку
+          _error = 'Login failed: $e';
         });
       } finally {
         setState(() {
-          _isLoading = false; // Выключаем индикатор
+          _isLoading = false;
         });
       }
     }
@@ -85,8 +84,8 @@ class _AuthScreenState extends State<AuthScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              _isLoading // Используем _isLoading
-                  ? const CircularProgressIndicator() // Показываем индикатор
+              _isLoading
+                  ? const CircularProgressIndicator()
                   : ElevatedButton(
                 onPressed: _submit,
                 child: const Text('Login'),

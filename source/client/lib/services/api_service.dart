@@ -5,17 +5,22 @@ import 'package:housing_inspection_client/models/appeal_category.dart';
 import 'package:housing_inspection_client/models/appeal_status.dart';
 import 'package:housing_inspection_client/models/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:jwt_decoder/jwt_decoder.dart';
 
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+import '../main.dart';
+import 'package:housing_inspection_client/models/api_exception.dart'; //  Импортируем
 
 class ApiService {
   final String baseUrl = 'http://5.35.125.180:8000';
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    final token = prefs.getString('auth_token');
+    return token;
   }
 
   Future<String> _copyFileToAppDirectory(String filePath) async {
@@ -32,45 +37,63 @@ class ApiService {
 
   Future<List<Appeal>> getAppeals() async {
     final token = await _getToken();
-    final Map<String,String> headers = {}; //Создаем переменную
-    if(token != null){ //Если токен есть - добавляем
-      headers.addAll({'Authorization': 'Bearer $token'});
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
     }
     final response = await http.get(
       Uri.parse('$baseUrl/appeals/'),
-      headers: headers, //  Добавляем заголовок
+      headers: headers,
     );
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
       return data.map((json) => Appeal.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load appeals: ${response.statusCode}');
+      //  Используем ApiException с кодом статуса и сообщением
+      throw ApiException('Failed to load appeals', response.statusCode);
     }
   }
 
   Future<Appeal> getAppeal(int id) async {
     final token = await _getToken();
-    final Map<String,String> headers = {}; //Создаем переменную
-    if(token != null){ //Если токен есть - добавляем
-      headers.addAll({'Authorization': 'Bearer $token'});
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
     }
     final response = await http.get(Uri.parse('$baseUrl/appeals/$id'),
       headers: headers,
     );
 
     if (response.statusCode == 200) {
-      return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes))); // ИСПРАВЛЕНО
+      return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception('Failed to load appeal: ${response.statusCode}');
+      throw ApiException('Failed to load appeal', response.statusCode);
     }
   }
 
   Future<Appeal> createAppeal(Appeal appeal, List<String> filePaths) async {
     final token = await _getToken();
-    final Map<String,String> headers = {}; //Создаем переменную
-    if(token != null){ //Если токен есть - добавляем
-      headers.addAll({'Authorization': 'Bearer $token'});
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
     }
     final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/appeals/'));
 
@@ -80,35 +103,40 @@ class ApiService {
       request.fields['description'] = appeal.description!;
     }
 
-    // Копируем файлы и используем НОВЫЕ пути:
     List<String> newFilePaths = [];
     for (var filePath in filePaths) {
-      final newPath = await _copyFileToAppDirectory(filePath); // КОПИРУЕМ
+      final newPath = await _copyFileToAppDirectory(filePath);
       newFilePaths.add(newPath);
     }
 
-    for (var filePath in newFilePaths) { // Используем новые пути
+    for (var filePath in newFilePaths) {
       request.files.add(await http.MultipartFile.fromPath('files', filePath));
     }
 
-    request.headers.addAll(headers); //
+    request.headers.addAll(headers);
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200) {
       return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      print(response.body);
-      throw Exception(
-          'Failed to create appeal: ${response.statusCode}, ${response.body}');
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create appeal';
+      throw ApiException(errorMessage, response.statusCode);
     }
   }
 
   Future<Appeal> updateAppeal(Appeal appeal, List<String> newFilePaths) async {
     final token = await _getToken();
-    final Map<String,String> headers = {}; //Создаем переменную
-    if(token != null){ //Если токен есть - добавляем
-      headers.addAll({'Authorization': 'Bearer $token'});
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
     }
     final request = http.MultipartRequest(
         'PUT', Uri.parse('$baseUrl/appeals/${appeal.id}'));
@@ -122,14 +150,13 @@ class ApiService {
       request.fields['status_id'] = appeal.statusId.toString();
     }
 
-    // Копируем файлы и используем НОВЫЕ пути:
     List<String> updatedFilePaths = [];
     for (var filePath in newFilePaths) {
-      final newPath = await _copyFileToAppDirectory(filePath); // КОПИРУЕМ
+      final newPath = await _copyFileToAppDirectory(filePath);
       updatedFilePaths.add(newPath);
     }
 
-    for (var filePath in updatedFilePaths) { // Используем новые пути
+    for (var filePath in updatedFilePaths) {
       request.files.add(await http.MultipartFile.fromPath('files', filePath));
     }
     request.headers.addAll(headers);
@@ -137,17 +164,22 @@ class ApiService {
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200) {
-      return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes))); // ИСПРАВЛЕНО
+      return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception(
-          'Failed to update appeal: ${response.statusCode}, ${response.body}');
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update appeal';
+      throw ApiException(errorMessage, response.statusCode);
     }
   }
 
   Future<void> deleteAppeal(int id) async {
     final token = await _getToken();
-    final Map<String,String> headers = {}; //Создаем переменную
-    if(token != null){ //Если токен есть - добавляем
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+    final Map<String,String> headers = {};
+    if(token != null){
       headers.addAll({'Authorization': 'Bearer $token'});
     }
     final response = await http.delete(Uri.parse('$baseUrl/appeals/$id'),
@@ -155,7 +187,7 @@ class ApiService {
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to delete appeal: ${response.statusCode}');
+      throw ApiException('Failed to delete appeal', response.statusCode);
     }
   }
 
@@ -168,7 +200,7 @@ class ApiService {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
       return data.map((json) => AppealCategory.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load categories: ${response.statusCode}');
+      throw ApiException('Failed to load categories', response.statusCode);
     }
   }
 
@@ -180,49 +212,184 @@ class ApiService {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
       return data.map((json) => AppealStatus.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load statuses: ${response.statusCode}');
+      throw ApiException('Failed to load statuses', response.statusCode);
     }
   }
 
-  // --- Users ---
+// --- Users ---
   Future<User> getUser(int id) async {
     final token = await _getToken();
-    final Map<String,String> headers = {}; //Создаем переменную
-    if(token != null){ //Если токен есть - добавляем
-      headers.addAll({'Authorization': 'Bearer $token'});
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
     }
     final response = await http.get(Uri.parse('$baseUrl/users/$id'),
       headers: headers,
     );
 
     if (response.statusCode == 200) {
-      return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes))); // ИСПРАВЛЕНО
+      return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw Exception('Failed to load user: ${response.statusCode}');
+      throw ApiException('Failed to load user',response.statusCode);
     }
   }
 
-  Future<User?> register(String username, String email, String password, String? fullName, String role) async {
+  Future<List<User>> getUsers() async {
+    final token = await _getToken();
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/'),
+      headers: headers,
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data.map((json) => User.fromJson(json)).toList();
+    } else {
+      throw ApiException('Failed to load users',response.statusCode);
+    }
+  }
+  Future<dynamic> register(String username, String email, String password, String passwordConfirm, String? fullName, String role) async{
     final response = await http.post(
         Uri.parse('$baseUrl/users/'),
-        body: {
+        body: jsonEncode({
           'username': username,
           'email': email,
           'password': password,
+          'password_confirm': passwordConfirm,
           'full_name': fullName,
           'role': role,
-        },
+        }),
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded', //Важно!
+          'Content-Type': 'application/json',
         }
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      return User.fromJson(data);
+      return data;
 
     } else {
-      print('Registration failed: ${response.statusCode}, ${response.body}');
-      return null; // Возвращаем null в случае ошибки
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      if (errorData.containsKey('detail')) {
+        if (errorData['detail'] is String) {
+          throw ApiException(errorData['detail'], response.statusCode); //  Строка
+        } else if (errorData['detail'] is List) {
+          final errorMessages = (errorData['detail'] as List).map((e) => e['msg'] as String).toList();
+          throw ApiException(errorMessages.join('\n'), response.statusCode); //  Список
+        }
+      }
+      throw ApiException('Registration failed', response.statusCode); //Общая ошибка
+    }
+  }
+
+  Future<User> createUser(String username, String email, String password,
+      String? fullName, String role) async {
+    final token = await _getToken();
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+
+    final Map<String,String> headers = {};
+    if(token != null){
+      headers.addAll({'Authorization': 'Bearer $token'});
+    }
+    headers.addAll({'Content-Type': 'application/json'});
+    final response = await http.post(
+        Uri.parse('$baseUrl/users/'),
+        headers: headers,
+        body: jsonEncode({
+          'username': username,
+          'email': email,
+          'password': password,
+          'password_confirm': password,
+          'full_name': fullName,
+          'role': role,
+        })
+    );
+    if (response.statusCode == 200) {
+      return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+    } else {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create user';
+      throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
+  Future<User> updateUser(User updatedUser) async {
+    final token = await _getToken();
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+    final Map<String,String> headers = {};
+    if(token != null){
+      headers.addAll({'Authorization': 'Bearer $token'});
+    }
+    headers.addAll({'Content-Type': 'application/json'}); //Указываем
+
+    print("updateUser called with: ${updatedUser.toJson()}");
+
+    final response = await http.put(
+        Uri.parse('$baseUrl/users/${updatedUser.id}'),
+        headers: headers,
+        body: jsonEncode({ //Кодируем
+          'username': updatedUser.username,
+          'email': updatedUser.email,
+          'full_name': updatedUser.fullName,
+          'role': updatedUser.role,
+          'is_active': updatedUser.isActive,
+        })
+    );
+
+    print("updateUser response: statusCode=${response.statusCode}, body=${response.body}");
+
+    if (response.statusCode == 200) {
+      return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+    } else {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update user';
+      throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
+  Future<void> deleteUser(int userId) async {
+    final token = await _getToken();
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+    final Map<String,String> headers = {};
+    if(token != null){
+      headers.addAll({'Authorization': 'Bearer $token'});
+    }
+    final response = await http.delete(
+      Uri.parse('$baseUrl/users/$userId'),
+      headers: headers,
+    );
+
+    if (response.statusCode != 200) {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create user';
+      throw ApiException(errorMessage, response.statusCode); //  Неизвестная ошибка
     }
   }
 }

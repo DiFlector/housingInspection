@@ -6,13 +6,12 @@ import 'package:housing_inspection_client/models/appeal.dart';
 import 'package:housing_inspection_client/models/appeal_category.dart';
 import 'package:housing_inspection_client/models/appeal_status.dart';
 import 'package:housing_inspection_client/providers/appeal_provider.dart';
+import 'package:housing_inspection_client/providers/category_provider.dart';
+import 'package:housing_inspection_client/providers/status_provider.dart';
 import 'package:housing_inspection_client/services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:path/path.dart' as p;
-import 'package:housing_inspection_client/providers/category_provider.dart';
-import 'package:housing_inspection_client/providers/status_provider.dart';
-
 
 class AppealCreateScreen extends StatefulWidget {
   const AppealCreateScreen({super.key});
@@ -22,60 +21,66 @@ class AppealCreateScreen extends StatefulWidget {
 }
 
 Widget _buildFilePreview(String path) {
-  final extension = p.extension(path).toLowerCase(); // Получаем расширение
+  final extension = p.extension(path).toLowerCase();
 
   if (['.jpg', '.jpeg', '.png', '.gif', '.bmp'].contains(extension)) {
-    // Это изображение
     return kIsWeb
         ? Image.network(path, width: 100, height: 100)
         : Image.file(File(path), width: 100, height: 100);
   } else if (extension == '.pdf') {
-    // Это PDF
-    return const SizedBox(width: 100, height: 100, child: Icon(Icons.picture_as_pdf, size: 64)); // Иконка PDF
+    return const SizedBox(
+        width: 100, height: 100, child: Icon(Icons.picture_as_pdf, size: 64));
   } else {
-    // Другой тип файла
-    return const SizedBox(width: 100, height: 100, child: Icon(Icons.file_present, size: 64)); // Иконка файла
+    return const SizedBox(
+        width: 100, height: 100, child: Icon(Icons.file_present, size: 64));
   }
 }
 
 class _AppealCreateScreenState extends State<AppealCreateScreen> {
   final _formKey = GlobalKey<FormState>();
   String _address = '';
-  int _categoryId = 1; // Начальное значение
+  int _categoryId = 1;
   String _description = '';
   List<String> _filePaths = [];
-  final ApiService _apiService = ApiService(); // Создаем экземпляр ApiService
+  final ApiService _apiService = ApiService();
   late List<AppealCategory> _categories = [];
   late List<AppealStatus> _statuses = [];
 
-  bool _isLoading = false; //  Добавляем флаг загрузки
+  bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadCategoriesAndStatuses(); // Загружаем категории и статусы при инициализации
+    _loadCategoriesAndStatuses();
   }
+
   Future<void> _loadCategoriesAndStatuses() async {
     try {
-      _categories = await Provider.of<CategoryProvider>(context, listen: false).categories;
-      _statuses = await Provider.of<StatusProvider>(context, listen: false).statuses;
+      _categories =
+      await Provider.of<CategoryProvider>(context, listen: false).categories;
+      _statuses =
+      await Provider.of<StatusProvider>(context, listen: false).statuses;
       setState(() {});
     } catch (e) {
       print('Error loading categories and statuses: $e');
-      // Обработка ошибок (например, показ сообщения пользователю)
+      setState(() {
+        _error = 'Failed to load categories and statuses: $e'; //  Показываем ошибку
+      });
     }
   }
 
   Future<void> _pickFiles() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    FilePickerResult? result =
+    await FilePicker.platform.pickFiles(allowMultiple: true);
 
     if (result != null) {
       setState(() {
-        //_filePaths = result.paths.map((path) => File(path)).toList();
         _filePaths = result.paths.map((path) => path!).toList();
       });
     }
   }
+
   Future<void> _takePicture() async {
     final ImagePicker _picker = ImagePicker();
     final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
@@ -86,6 +91,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
       });
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,7 +103,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
         child: Form(
           key: _formKey,
           child:
-          _isLoading ? const Center(child: CircularProgressIndicator()) :
+          _isLoading ? const Center(child: CircularProgressIndicator()) :  //  Индикатор загрузки
           ListView(
             children: [
               TextFormField(
@@ -115,10 +121,10 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
               DropdownButtonFormField<int>(
                 decoration: const InputDecoration(labelText: 'Category'),
                 value: _categoryId,
-                items: _categories.map((category) { // Используем _categories
+                items: _categories.map((category) {
                   return DropdownMenuItem<int>(
                     value: category.id,
-                    child: Text(category.name), // Отображаем name
+                    child: Text(category.name),
                   );
                 }).toList(),
                 onChanged: (value) {
@@ -147,44 +153,48 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
               Wrap(
                 children: _filePaths.map((path) => Padding(
                   padding: const EdgeInsets.all(4.0),
-                  child: _buildFilePreview(path), // Используем вспомогательную функцию
+                  child: _buildFilePreview(path),
                 )).toList(),
               ),
-
+              if (_error != null)  //  Отображение ошибки
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
               ElevatedButton(
-                onPressed: () async {  //  Делаем обработчик асинхронным
+                onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
 
-                    final newAppeal = Appeal(
-                      id: 0,
-                      userId: 0,
-                      categoryId: _categoryId,
-                      statusId: 1,
-                      address: _address,
-                      description: _description,
-                      createdAt: DateTime.now(),
-                      updatedAt: DateTime.now(),
-                    );
-
                     setState(() {
-                      _isLoading = true; //  Включаем индикатор загрузки
+                      _isLoading = true;
+                      _error = null; // Сбрасываем ошибку
                     });
 
                     try {
-                      await Provider.of<AppealProvider>(context, listen: false).addAppeal(newAppeal, _filePaths);
-                      Navigator.pop(context); //  Возвращаемся назад в случае успеха
-                    } catch (e) {
-                      //  Обработка ошибок
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error creating appeal: $e'),
-                          backgroundColor: Colors.red,
-                        ),
+                      final newAppeal = Appeal(
+                        id: 0, //  Сервер сам назначит ID
+                        userId: 0, //  Будет подставлено сервером
+                        categoryId: _categoryId,
+                        statusId: 1, //  Новое обращение
+                        address: _address,
+                        description: _description,
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
                       );
+                      await Provider.of<AppealProvider>(context, listen: false)
+                          .addAppeal(newAppeal, _filePaths);
+                      Navigator.of(context).pop(); //  Возвращаемся назад
+                    } catch (e) {
+                      setState(() {
+                        _error = 'Error creating appeal: $e'; //  Показываем ошибку
+                      });
                     } finally {
                       setState(() {
-                        _isLoading = false; //  Выключаем индикатор загрузки
+                        _isLoading = false; //  В любом случае выключаем индикатор
                       });
                     }
                   }

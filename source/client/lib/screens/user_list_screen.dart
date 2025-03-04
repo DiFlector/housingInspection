@@ -1,0 +1,121 @@
+import 'package:flutter/material.dart';
+import 'package:housing_inspection_client/models/user.dart';
+import 'package:housing_inspection_client/providers/user_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:housing_inspection_client/providers/auth_provider.dart';
+import 'package:housing_inspection_client/screens/user_edit_screen.dart';
+
+class UserListScreen extends StatefulWidget {
+  const UserListScreen({super.key});
+
+  @override
+  _UserListScreenState createState() => _UserListScreenState();
+}
+
+class _UserListScreenState extends State<UserListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final role = Provider.of<AuthProvider>(context, listen: false).role;
+    if (role != 'inspector') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacementNamed('/');
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Provider.of<UserProvider>(context, listen: false).fetchUsers();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final role = Provider.of<AuthProvider>(context, listen: false).role;
+    if (role != 'inspector') {
+      return const SizedBox
+          .shrink(); //  Если не инспектор, вообще ничего не отображаем
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Users'),
+      ),
+      body: Consumer<UserProvider>(
+        builder: (context, userProvider, child) {
+          if (userProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (userProvider.users.isEmpty) {
+            return const Center(child: Text('No users found.'));
+          } else {
+            return ListView.builder(
+              itemCount: userProvider.users.length,
+              itemBuilder: (context, index) {
+                final user = userProvider.users[index];
+                return ListTile(
+                  title: Text(user.username),
+                  subtitle: Text(user.email),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => UserEditScreen(user: user),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (BuildContext context) {
+                              return AlertDialog(
+                                title: const Text('Confirm Delete'),
+                                content: const Text('Are you sure you want to delete this user?'),
+                                actions: <Widget>[
+                                  TextButton(
+                                    child: const Text('Cancel'),
+                                    onPressed: () {
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                  TextButton(
+                                    child: const Text('Delete'),
+                                    onPressed: () {
+                                      Provider.of<UserProvider>(context, listen: false).deleteUser(user.id);
+                                      Navigator.of(context).pop();
+                                    },
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const UserEditScreen(user: null),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}

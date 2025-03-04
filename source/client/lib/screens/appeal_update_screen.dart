@@ -9,11 +9,10 @@ import 'package:housing_inspection_client/services/api_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import 'package:housing_inspection_client/providers/category_provider.dart';
-import 'package:housing_inspection_client/providers/status_provider.dart';
-
 import '../models/appeal.dart';
 import '../providers/appeal_provider.dart';
+import 'package:housing_inspection_client/providers/category_provider.dart';
+import 'package:housing_inspection_client/providers/status_provider.dart';
 
 import 'package:path/path.dart' as p;
 
@@ -45,38 +44,48 @@ Widget _buildFilePreview(String path) {
 class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
   final _formKey = GlobalKey<FormState>();
   String _address = '';
-  int _categoryId = 1; // Начальное значение
+  int _categoryId = 1;
   String _description = '';
   int _statusId = 1;
   List<String> _newFilePaths =
-  []; // Список для *новых* файлов (выбранных при обновлении)
+  [];
   final ApiService _apiService = ApiService();
   late List<AppealCategory> _categories = [];
   late List<AppealStatus> _statuses = [];
   Appeal? _appeal;
-  bool _isLoading = true; // Индикатор загрузки
+  bool _isLoading = true;
+  String? _error; //  Добавили для отображения ошибок
 
   @override
   void initState() {
     super.initState();
     _loadData();
   }
+
   Future<void> _loadData() async {
+    try {
+      _categories =
+      await Provider.of<CategoryProvider>(context, listen: false).categories;
+      _statuses =
+      await Provider.of<StatusProvider>(context, listen: false).statuses;
+      _appeal = Provider.of<AppealProvider>(context, listen: false)
+          .appeals
+          .firstWhere((a) => a.id == widget.appealId);
 
-    _categories = await Provider.of<CategoryProvider>(context, listen: false).categories;
-    _statuses = await Provider.of<StatusProvider>(context, listen: false).statuses;
-    // Получаем данные об обращении из провайдера.
-    _appeal = Provider.of<AppealProvider>(context, listen: false).appeals.firstWhere((a) => a.id == widget.appealId);
-    // Заполняем поля формы начальными значениями
-    _address = _appeal!.address;
-    _categoryId = _appeal!.categoryId;
-    _description = _appeal!.description ?? '';
-    _statusId = _appeal!.statusId;
-    //_filePaths = _appeal!.filePaths?.split(',') ?? []; //  НЕ НУЖНО
+      _address = _appeal!.address;
+      _categoryId = _appeal!.categoryId;
+      _description = _appeal!.description ?? '';
+      _statusId = _appeal!.statusId;
 
-    setState(() {
-      _isLoading = false; // Убираем индикатор загрузки
-    });
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e){ //  Ловим ошибки при загрузке данных
+      setState(() {
+        _isLoading = false;
+        _error = 'Failed to load appeal data: $e';
+      });
+    }
 
   }
 
@@ -87,7 +96,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
     if (result != null) {
       setState(() {
         _newFilePaths
-            .addAll(result.paths.map((path) => path!).toList()); // Добавляем НОВЫЕ файлы
+            .addAll(result.paths.map((path) => path!).toList());
       });
     }
   }
@@ -98,7 +107,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
 
     if (photo != null) {
       setState(() {
-        _newFilePaths.add(photo.path); // Добавляем НОВЫЙ файл
+        _newFilePaths.add(photo.path);
       });
     }
   }
@@ -110,7 +119,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
         title: const Text('Update Appeal'),
       ),
       body:
-      _isLoading ? const Center(child: CircularProgressIndicator()) : //  Индикатор загрузки
+      _isLoading ? const Center(child: CircularProgressIndicator()) :
       Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -147,13 +156,13 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
               ),
               DropdownButtonFormField<int>(
                 decoration: const InputDecoration(labelText: 'Status'),
-                value: _statusId, // Установите начальное значение
+                value: _statusId,
                 items:_statuses.map((status) {
                   return DropdownMenuItem<int>(value: status.id, child: Text(status.name));
                 }).toList(),
                 onChanged: (value) {
                   setState(() {
-                    _statusId = value!; // Обновляем выбранный статус
+                    _statusId = value!;
                   });
                 },
               ),
@@ -165,7 +174,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                   _description = value ?? '';
                 },
               ),
-              const SizedBox(height: 20), // Добавляем отступ
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _pickFiles,
                 child: const Text('Select Files'),
@@ -176,49 +185,55 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
               ),
               const SizedBox(height: 10),
               Wrap(
-                children: _newFilePaths.map((path) => Padding( // প্রিভিউ новых файлов
+                children: _newFilePaths.map((path) => Padding(
                   padding: const EdgeInsets.all(4.0),
                   child: _buildFilePreview(path),
                 )).toList(),
               ),
 
+              if (_error != null)  //  Отображение ошибки
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+
               ElevatedButton(
-                onPressed: () async {
+                onPressed: () async {  //  Делаем асинхронным
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
 
                     final updatedAppeal = Appeal(
-                        id: widget.appealId,  // ID редактируемого обращения
-                        userId: _appeal!.userId, // Используем старый userId
+                        id: widget.appealId,
+                        userId: _appeal!.userId,
                         categoryId: _categoryId,
-                        statusId: _statusId, // Статус может быть изменен
+                        statusId: _statusId,
                         address: _address,
                         description: _description,
-                        createdAt: _appeal!.createdAt, // Используем старое время создания
-                        updatedAt: DateTime.now(), // Обновляем время редактирования
-                        filePaths: _appeal!.filePaths //Используем старые файлы
+                        createdAt: _appeal!.createdAt,
+                        updatedAt: DateTime.now(),
+                        filePaths: _appeal!.filePaths
                     );
 
                     setState(() {
-                      _isLoading = true;
+                      _isLoading = true; //  Включаем индикатор
+                      _error = null;     //  Сбрасываем ошибку
                     });
 
                     try {
                       await Provider.of<AppealProvider>(context, listen: false).updateAppealData(updatedAppeal, _newFilePaths);
                       Navigator.pop(context);
                     } catch (e){
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error updating appeal: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      setState(() {
+                        _error = 'Error updating appeal: $e';
+                      });
                     } finally {
                       setState(() {
-                        _isLoading = false;
+                        _isLoading = false; //  В любом случае выключаем
                       });
                     }
-
                   }
                 },
                 child: const Text('Submit'),

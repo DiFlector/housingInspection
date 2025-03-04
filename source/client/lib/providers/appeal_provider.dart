@@ -11,14 +11,26 @@ class AppealProvider with ChangeNotifier {
   bool get isLoading => _isLoading; //  Геттер для isLoading
 
   Future<void> fetchAppeals() async {
-    _isLoading = true; //  Устанавливаем isLoading в true перед загрузкой
-    notifyListeners();    //  Уведомляем слушателей (чтобы показать индикатор загрузки)
-
-    _appeals = await _apiService.getAppeals();
-
-    _isLoading = false; //  Устанавливаем isLoading в false после загрузки
-    notifyListeners();    //  Уведомляем слушателей (чтобы обновить UI)
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _appeals = await _apiService.getAppeals();
+    } catch (e) {
+      print('Error fetching appeals: $e');
+      //  Обработка ошибки.  Например:
+      if (e.toString() == "Authentication required") {
+        //  Перенаправляем на экран входа.  Для этого нужно передать context.
+        //  Это можно сделать, например, через callback:
+        //  onAuthError();  //  Вызываем callback, переданный из UI
+      } else {
+        //  Другая ошибка - показываем сообщение
+      }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
+
   Future<void> addAppeal(Appeal newAppeal, List<String> filePaths) async {
     final createdAppeal = await _apiService.createAppeal(newAppeal, filePaths);
     _appeals.add(createdAppeal);
