@@ -3,6 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Query
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from typing import List, Optional
+from fastapi.middleware.cors import CORSMiddleware
 
 from . import models, schemas
 from .auth import get_password_hash, verify_password, create_access_token, decode_token  # Импорты
@@ -33,6 +34,14 @@ def get_db():
 
 app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") #  OAuth2, tokenUrl - относительный путь
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
 
 @app.get("/")
 def read_root():
@@ -406,7 +415,7 @@ def delete_appeal_category(category_id: int, db: Session = Depends(get_db), curr
     db.commit()
     return {"message": "Category deleted"}
 
-@router.post("/token", response_model=schemas.Token)  # OAuth2
+@router.post("/token", response_model=schemas.Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password):
@@ -417,7 +426,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token_expires = timedelta(minutes=int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")))
     access_token = create_access_token(
-        data={"sub": user.username, "role": user.role},  #  Передаём роль
+        data={"sub": user.username, "role": user.role, "user_id": user.id},  #  Передаём user_id
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
