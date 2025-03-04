@@ -46,14 +46,14 @@ class AuthService {
     return token != null;
   }
 
-  Future<dynamic> register(String username, String email, String password, String passwordConfirm, String? fullName, String role) async {
+  Future<String?> register(String username, String email, String password, String passwordConfirm, String? fullName, String role) async{
     final response = await http.post(
         Uri.parse('$baseUrl/users/'),
-        body: jsonEncode({ //  ИСПРАВЛЕНО: кодируем в JSON
+        body: jsonEncode({
           'username': username,
           'email': email,
           'password': password,
-          'password_confirm': passwordConfirm, //  ДОБАВИТЬ
+          'password_confirm': passwordConfirm,
           'full_name': fullName,
           'role': role,
         }),
@@ -63,11 +63,19 @@ class AuthService {
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      return data;
+      return null; //Все хорошо
 
     } else {
-      print('Registration failed: ${response.statusCode}, ${response.body}');
-      return response.body; // Возвращаем  ошибку
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      if (errorData.containsKey('detail')) {
+        if (errorData['detail'] is String) {
+          return errorData['detail']; //  Строка
+        } else if (errorData['detail'] is List) {
+          final errorMessages = (errorData['detail'] as List).map((e) => e['msg'] as String).toList();
+          return errorMessages.join('\n'); //  Список
+        }
+      }
+      return 'Registration failed: ${response.statusCode}'; //Общая ошибка
     }
   }
 }
