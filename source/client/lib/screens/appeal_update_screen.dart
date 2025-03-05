@@ -83,7 +83,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
     } catch (e){ //  Ловим ошибки при загрузке данных
       setState(() {
         _isLoading = false;
-        _error = 'Failed to load appeal data: $e';
+        _error = 'Ошибка при загрузке данных обращения: $e';
       });
     }
 
@@ -116,7 +116,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Update Appeal'),
+        title: const Text('Изменить обращение'),
       ),
       body:
       _isLoading ? const Center(child: CircularProgressIndicator()) :
@@ -127,11 +127,11 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
           child: ListView(
             children: [
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Address'),
+                decoration: const InputDecoration(labelText: 'Адрес'),
                 initialValue: _address,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter an address';
+                    return 'Пожалуйста, введите адрес';
                   }
                   return null;
                 },
@@ -140,7 +140,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                 },
               ),
               DropdownButtonFormField<int>(
-                decoration: const InputDecoration(labelText: 'Category'),
+                decoration: const InputDecoration(labelText: 'Категория'),
                 value: _categoryId,
                 items: _categories.map((category) {
                   return DropdownMenuItem<int>(
@@ -155,7 +155,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                 },
               ),
               DropdownButtonFormField<int>(
-                decoration: const InputDecoration(labelText: 'Status'),
+                decoration: const InputDecoration(labelText: 'Статус'),
                 value: _statusId,
                 items:_statuses.map((status) {
                   return DropdownMenuItem<int>(value: status.id, child: Text(status.name));
@@ -167,7 +167,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                 },
               ),
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: const InputDecoration(labelText: 'Описание'),
                 maxLines: 3,
                 initialValue: _description,
                 onSaved: (value) {
@@ -177,11 +177,11 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _pickFiles,
-                child: const Text('Select Files'),
+                child: const Text('Добавить файлы'),
               ),
               ElevatedButton(
                 onPressed: _takePicture,
-                child: const Text('Take a Picture'),
+                child: const Text('Добавить фото'),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -227,7 +227,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                       Navigator.pop(context);
                     } catch (e){
                       setState(() {
-                        _error = 'Error updating appeal: $e';
+                        _error = 'Ошибка при изменении обращения: $e';
                       });
                     } finally {
                       setState(() {
@@ -236,7 +236,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                     }
                   }
                 },
-                child: const Text('Submit'),
+                child: const Text('Отправить'),
               ),
             ],
           ),

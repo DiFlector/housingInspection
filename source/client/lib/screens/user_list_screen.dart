@@ -38,7 +38,7 @@ class _UserListScreenState extends State<UserListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Users'),
+        title: const Text('Пользователи'),
       ),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
@@ -50,7 +50,7 @@ class _UserListScreenState extends State<UserListScreen> {
             child: userProvider.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : userProvider.users.isEmpty
-                ? const Center(child: Text('No users found.'))
+                ? const Center(child: Text('Пользователи не найдены.'))
                 : ListView.builder(
               itemCount: userProvider.users.length,
               itemBuilder: (context, index) {
@@ -80,17 +80,17 @@ class _UserListScreenState extends State<UserListScreen> {
                             context: context,
                             builder: (BuildContext context) {
                               return AlertDialog(
-                                title: const Text('Confirm Delete'),
-                                content: const Text('Are you sure you want to delete this user?'),
+                                title: const Text('Подтверждение удаления'),
+                                content: const Text('Вы уверены, что хотите удалить этого пользователя?'),
                                 actions: <Widget>[
                                   TextButton(
-                                    child: const Text('Cancel'),
+                                    child: const Text('Отмена'),
                                     onPressed: () {
                                       Navigator.of(context).pop();
                                     },
                                   ),
                                   TextButton(
-                                    child: const Text('Delete'),
+                                    child: const Text('Удалить'),
                                     onPressed: () {
                                       Provider.of<UserProvider>(context, listen: false).deleteUser(user.id);
                                       Navigator.of(context).pop();

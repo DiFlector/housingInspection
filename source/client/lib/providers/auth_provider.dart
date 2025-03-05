@@ -72,7 +72,7 @@ class AuthProvider with ChangeNotifier {
         _role = decodedToken['role'];
         _userId = decodedToken['user_id'];
       } catch (e) {
-        print("Error decoding token: $e");
+        print("Ошибка при декодировании токена: $e");
         _role = null;
         _userId = null;
       }

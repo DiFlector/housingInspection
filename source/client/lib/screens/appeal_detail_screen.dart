@@ -48,7 +48,7 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Appeal Details'),
+        title: const Text('Детали обращения'),
         actions: [
           IconButton(
               icon: const Icon(Icons.edit),
@@ -98,19 +98,19 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Address: ${appeal.address}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Адрес: ${appeal.address}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
-                  Text('Category: $categoryName'),
+                  Text('Категория: $categoryName'),
                   const SizedBox(height: 8),
-                  Text('Status: $statusName'),
+                  Text('Статус: $statusName'),
                   const SizedBox(height: 8),
-                  Text('Description: ${appeal.description ?? 'N/A'}'),
+                  Text("Описание: ${appeal.description ?? 'Нет описания'}"),
                   const SizedBox(height: 8),
-                  Text('Created at: ${appeal.createdAt}'),
+                  Text('Создано: ${appeal.createdAt}'),
                   const SizedBox(height: 8),
-                  Text('Updated at: ${appeal.updatedAt}'),
+                  Text('Обновлено: ${appeal.updatedAt}'),
                   const SizedBox(height: 8),
-                  // Text('File paths: ${appeal.filePaths ?? 'N/A'}'), //  Удаляем этот Text
+                  // Text('Файлы: ${appeal.filePaths ?? 'N/A'}'), //  Удаляем этот Text
                   Wrap(  //  Добавляем Wrap для отображения файлов
                     children: filePaths.map((path) => Padding(
                       padding: const EdgeInsets.all(4.0),// Добавляем отступы

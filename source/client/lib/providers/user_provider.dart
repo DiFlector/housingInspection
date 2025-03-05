@@ -19,7 +19,7 @@ class UserProvider with ChangeNotifier {
     } on ApiException catch (e) {
       print(e); //  TODO:  Обработать ошибку (показать сообщение)
     } catch (e) {
-      print('Error fetching users: $e');
+      print('Ошибка при получении пользователей: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -41,7 +41,7 @@ class UserProvider with ChangeNotifier {
       print(e); //  TODO:  Обработать ошибку (показать сообщение)
     }
     catch (e){
-      print('Error add user: $e');
+      print('Ошибка при добавлении пользователя: $e');
     }
   }
 
@@ -60,7 +60,7 @@ class UserProvider with ChangeNotifier {
       return null;
     }
     catch (e){
-      print('Error update user: $e');
+      print('Ошибка при изменении пользователя: $e');
       return null;
     }
   }
@@ -74,7 +74,7 @@ class UserProvider with ChangeNotifier {
       print(e);
     }
     catch (e){
-      print('Error delete user: $e');
+      print('Ошибка при удалении пользователя: $e');
     }
   }
 }

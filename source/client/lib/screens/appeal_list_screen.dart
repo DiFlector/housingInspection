@@ -49,7 +49,7 @@ class _AppealListScreenState extends State<AppealListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Appeals'),
+        title: const Text('Обращения'),
         actions: [
           //  ВРЕМЕННАЯ кнопка для перехода к списку пользователей
           if (Provider.of<AuthProvider>(context, listen: false).role ==
@@ -100,7 +100,7 @@ class _AppealListScreenState extends State<AppealListScreen> {
                 return ListTile(
                   title: Text(appeal.address),
                   subtitle: Text(
-                      'Status: ${Provider.of<StatusProvider>(context, listen: false).getStatusName(appeal.statusId)}'),
+                      'Статус: ${Provider.of<StatusProvider>(context, listen: false).getStatusName(appeal.statusId)}'),
                   onTap: () {
                     Navigator.push(
                       context,

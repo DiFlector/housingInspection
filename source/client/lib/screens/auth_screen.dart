@@ -34,12 +34,12 @@ class _AuthScreenState extends State<AuthScreen> {
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         } else {
           setState(() {
-            _error = 'Invalid username or password'; //  Сообщение об ошибке
+            _error = 'Неправильное имя пользователя или пароль'; //  Сообщение об ошибке
           });
         }
       } catch (e) {
         setState(() {
-          _error = 'Login failed: $e';
+          _error = 'Ошибка входа: $e';
         });
       } finally {
         setState(() {
@@ -53,7 +53,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Login'),
+        title: const Text('Вход'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -63,21 +63,21 @@ class _AuthScreenState extends State<AuthScreen> {
             children: [
               TextFormField(
                 controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Username'),
+                decoration: const InputDecoration(labelText: 'Имя пользователя'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter your username';
+                    return 'Пожалуйста, введите имя пользователя';
                   }
                   return null;
                 },
               ),
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
+                decoration: const InputDecoration(labelText: 'Пароль'),
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
+                    return 'Пожалуйста, введите пароль';
                   }
                   return null;
                 },
@@ -87,7 +87,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
                 onPressed: _submit,
-                child: const Text('Login'),
+                child: const Text('Вход'),
               ),
               if (_error != null)
                 Padding(

@@ -48,7 +48,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         }
       } catch (e) {
         setState(() {
-          _error = 'Registration failed: $e';
+          _error = 'Ошибка при регистрации: $e';
         });
       } finally {
         setState(() {
@@ -61,7 +61,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Register'),
+        title: const Text('Регистрация'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -71,69 +71,69 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
             children: [
               TextFormField(
                 controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Username'),
+                decoration: const InputDecoration(labelText: 'Имя пользователя'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a username';
+                    return 'Пожалуйста, введите имя пользователя';
                   }
                   if (value.length < 3 || value.length > 20) {
-                    return 'Username must be between 3 and 20 characters';
+                    return 'Имя пользователя должно содержать от 3 до 20 символов';
                   }
                   return null;
                 },
               ),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: const InputDecoration(labelText: 'Почта'),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter an email address';
+                    return 'Пожалуйста, введите адрес почты';
                   }
                   if (!value.contains('@')) {
-                    return 'Please enter a valid email address';
+                    return 'Пожалуйста, введите верный адрес почты';
                   }
                   return null;
                 },
               ),
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
+                decoration: const InputDecoration(labelText: "Пароль"),
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a password';
+                    return 'Пожалуйста, введите пароль';
                   }
                   if (value.length < 8) {
-                    return 'Password must be at least 8 characters long';
+                    return 'Пароль должен быть не менее 8 символов';
                   }
                   return null;
                 },
               ),
               TextFormField(
                 controller: _passwordConfirmController,
-                decoration: const InputDecoration(labelText: 'Confirm Password'),
+                decoration: const InputDecoration(labelText: 'Подтвердите пароль'),
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please confirm your password';
+                    return 'Пожалуйста, подтвердите пароль';
                   }
                   if (value != _passwordController.text) {
-                    return 'Passwords do not match';
+                    return 'Пароли не совпадают';
                   }
                   return null;
                 },
               ),
               TextFormField(
                 controller: _fullNameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
+                decoration: const InputDecoration(labelText: 'Полное имя'),
               ),
               const SizedBox(height: 20),
               _isLoading
                   ? const Center(child: CircularProgressIndicator()) //  Индикатор по центру
                   : ElevatedButton(
                 onPressed: _submit,
-                child: const Text('Register'),
+                child: const Text('Зарегистрироваться'),
               ),
               if (_error != null)
                 Padding(
