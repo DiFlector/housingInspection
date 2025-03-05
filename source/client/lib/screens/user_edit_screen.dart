@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:housing_inspection_client/models/user.dart';
 import 'package:housing_inspection_client/providers/user_provider.dart';
 import 'package:provider/provider.dart';
+import 'package:housing_inspection_client/providers/auth_provider.dart'; //Импортируем
 
 class UserEditScreen extends StatefulWidget {
-  final User? user; //  Может быть null (для создания)
+  final User? user;
 
   const UserEditScreen({super.key, required this.user});
 
@@ -20,8 +21,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
   final _passwordConfirmController = TextEditingController();
   final _fullNameController = TextEditingController();
   String? _role;
-  bool _isActive = true;
-
+  //bool _isActive = true;  //  УДАЛЯЕМ
   bool _isLoading = false;
   String? _error;
 
@@ -33,7 +33,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
       _emailController.text = widget.user!.email;
       _fullNameController.text = widget.user!.fullName ?? '';
       _role = widget.user!.role;
-      _isActive = widget.user!.isActive;
+      //_isActive = widget.user!.is_active;  //  УДАЛЯЕМ
     }
   }
 
@@ -60,31 +60,32 @@ class _UserEditScreenState extends State<UserEditScreen> {
         if (widget.user == null) {
           // Создание нового пользователя
           final newUser = User(
-            id: 0, // ID = 0 - признак нового пользователя (backend заменит на реальный)
+            id: 0,
             username: _usernameController.text,
             email: _emailController.text,
             fullName: _fullNameController.text,
             role: _role!,
-            isActive: _isActive,
-            createdAt: DateTime.now(),  // Временное значение
+            isActive: true, //  ВСЕГДА true при создании
+            createdAt: DateTime.now(),
           );
           await Provider.of<UserProvider>(context, listen: false)
-              .addUser(newUser, _passwordController.text); // Передаём пароль
+              .addUser(newUser, _passwordController.text);
         } else {
           // Редактирование существующего пользователя
           final updatedUser = User(
-            id: widget.user!.id,  //  ID берем из widget.user
+            id: widget.user!.id,
             username: _usernameController.text,
             email: _emailController.text,
             fullName: _fullNameController.text,
             role: _role!,
-            isActive: _isActive,
-            createdAt: widget.user!.createdAt, // Используем старое время создания
+            isActive: widget.user!.isActive,  //  Берем из widget.user
+            createdAt: widget.user!.createdAt,
           );
-          await Provider.of<UserProvider>(context, listen: false).updateUser(updatedUser);
+          await Provider.of<UserProvider>(context, listen: false)
+              .updateUser(updatedUser);
         }
 
-        Navigator.of(context).pop(); //  Возвращаемся назад после сохранения
+        Navigator.of(context).pop();
       } catch (e) {
         setState(() {
           _error = 'Error saving user: $e';
@@ -99,6 +100,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentRole = Provider.of<AuthProvider>(context, listen: false).role;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.user == null ? 'Create User' : 'Edit User'),
@@ -144,6 +146,11 @@ class _UserEditScreenState extends State<UserEditScreen> {
                     }
                     if (value.length < 8) {
                       return 'Password must be at least 8 characters long';
+                    }  if (!value.contains(RegExp(r'[0-9]'))) {
+                      return 'Password must contain at least one digit';
+                    }
+                    if (!value.contains(RegExp(r'[A-Z]'))) {
+                      return 'Password must contain at least one uppercase letter';
                     }
                     return null;
                   },
@@ -168,37 +175,29 @@ class _UserEditScreenState extends State<UserEditScreen> {
                 controller: _fullNameController,
                 decoration: const InputDecoration(labelText: 'Full Name'),
               ),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Role'),
-                value: _role,
-                items: const [
-                  DropdownMenuItem(value: 'citizen', child: Text('Citizen')),
-                  DropdownMenuItem(value: 'inspector', child: Text('Inspector')),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _role = value;
-                  });
-                },
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please select a role';
-                  }
-                  return null;
-                },
-              ),
-              SwitchListTile(
-                title: const Text('Active'),
-                value: _isActive,
-                onChanged: (value) {
-                  setState(() {
-                    _isActive = value;
-                  });
-                },
-              ),
+              if (currentRole == "inspector")
+                DropdownButtonFormField<String>( //Роль
+                  decoration: const InputDecoration(labelText: 'Role'),
+                  value: _role,
+                  items: const [
+                    DropdownMenuItem(value: 'citizen', child: Text('Citizen')),
+                    DropdownMenuItem(value: 'inspector', child: Text('Inspector')),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _role = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select a role';
+                    }
+                    return null;
+                  },
+                ),
               const SizedBox(height: 20),
               _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const CircularProgressIndicator()
                   : ElevatedButton(
                 onPressed: _submit,
                 child: const Text('Save'),

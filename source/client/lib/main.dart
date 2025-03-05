@@ -41,24 +41,24 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, //  Добавляем ключ в MaterialApp
       locale: const Locale('ru', 'RU'),
       title: 'Housing Inspection Client',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      // Используем Consumer<AuthProvider> для определения начального экрана
-      home: Consumer<AuthProvider>(
+      home: Consumer<AuthProvider>(  //  Используем Consumer
         builder: (context, authProvider, child) {
-          return authProvider.isLoggedIn ? const AppealListScreen() : const AuthScreen();
+          return authProvider.isLoggedIn
+              ? const AppealListScreen()  //  Если залогинен, то AppealListScreen
+              : const AuthScreen();      //  Если нет, то AuthScreen
         },
       ),
       routes: {
         '/appeals': (context) => const AppealListScreen(),
         '/auth': (context) => const AuthScreen(),
-        '/register': (context) => const RegistrationScreen(), // Добавляем роут
-        '/users':(context) => const UserListScreen(),
+        '/register': (context) => const RegistrationScreen(),
+        '/users': (context) => const UserListScreen(),
       },
     );
   }

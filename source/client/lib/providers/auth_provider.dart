@@ -30,17 +30,17 @@ class AuthProvider with ChangeNotifier {
   Future<String?> register(String username, String email, String password,  String passwordConfirm, String? fullName) async {
     const role = 'citizen';
     final result = await _authService.register(username, email, password, passwordConfirm, fullName, role);
-    if(result == null){ //Если ошибок нет
+    if(result == null){
       final success = await login(username, password);
-      if(success){
+      if(success == true){ //  Явная проверка на true
         return null;
       }
       else{
-        return "Ошибка входа"; //Какая-то ошибка
+        return "Ошибка входа";
       }
     }
     else {
-      return result; //Возвращаем ошибку
+      return result;
     }
   }
 
