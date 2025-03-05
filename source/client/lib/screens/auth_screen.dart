@@ -20,7 +20,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
-        _error = null;
+        _error = null; // Сбрасываем предыдущую ошибку
       });
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -31,11 +31,10 @@ class _AuthScreenState extends State<AuthScreen> {
         );
 
         if (success) {
-          //  ИСПРАВЛЕННАЯ НАВИГАЦИЯ:
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false); //  ИЗМЕНЕНО
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         } else {
           setState(() {
-            _error = 'Invalid username or password';
+            _error = 'Invalid username or password'; //  Сообщение об ошибке
           });
         }
       } catch (e) {

@@ -68,10 +68,10 @@ class UserProvider with ChangeNotifier {
   Future<void> deleteUser(int userId) async {
     try{
       await _apiService.deleteUser(userId);
-      _users.removeWhere((user) => user.id == userId);
+      _users.removeWhere((user) => user.id == userId); //Удаляем из списка
       notifyListeners();
     } on ApiException catch (e){
-      print(e); //  TODO:  Обработать ошибку (показать сообщение)
+      print(e);
     }
     catch (e){
       print('Error delete user: $e');

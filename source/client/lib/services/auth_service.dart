@@ -7,11 +7,11 @@ class AuthService {
 
   Future<String?> login(String username, String password) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/token'), // Используем /token
+      Uri.parse('$baseUrl/token'),
       body: {
         'username': username,
         'password': password,
-        'grant_type': 'password', //  Явно указываем grant_type
+        'grant_type': 'password',
       },
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -19,15 +19,18 @@ class AuthService {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes)); //  ПРАВИЛЬНОЕ ДЕКОДИРОВАНИЕ
+      final data = jsonDecode(utf8.decode(response.bodyBytes));
       final token = data['access_token'];
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
-      return token; // Возвращаем токен
-    } else {
-      print('Login failed: ${response.statusCode}, ${response.body}'); //Для дебага
-      return null; // Возвращаем null в случае ошибки
+      return token;
+    } else if (response.statusCode == 400 && response.body.contains("Inactive user")) {  //  Добавляем проверку
+      return "Inactive user"; //  Возвращаем сообщение
+    }
+    else {
+      print('Login failed: ${response.statusCode}, ${response.body}');
+      return null;
     }
   }
 

@@ -42,16 +42,21 @@ class _UserListScreenState extends State<UserListScreen> {
       ),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, child) {
-          if (userProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (userProvider.users.isEmpty) {
-            return const Center(child: Text('No users found.'));
-          } else {
-            return ListView.builder(
+          return RefreshIndicator(  //  Добавляем RefreshIndicator
+            onRefresh: () async {
+              //  Обновляем список пользователей
+              await Provider.of<UserProvider>(context, listen: false).fetchUsers();
+            },
+            child: userProvider.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : userProvider.users.isEmpty
+                ? const Center(child: Text('No users found.'))
+                : ListView.builder(
               itemCount: userProvider.users.length,
               itemBuilder: (context, index) {
                 final user = userProvider.users[index];
-                return ListTile(
+                return user.isActive ?
+                ListTile(
                   title: Text(user.username),
                   subtitle: Text(user.email),
                   trailing: Row(
@@ -99,10 +104,10 @@ class _UserListScreenState extends State<UserListScreen> {
                       ),
                     ],
                   ),
-                );
+                ): const SizedBox.shrink();
               },
-            );
-          }
+            ),
+          );
         },
       ),
       floatingActionButton: FloatingActionButton(

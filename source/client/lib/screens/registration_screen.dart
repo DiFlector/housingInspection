@@ -38,11 +38,12 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           _fullNameController.text,
         );
 
-        if (result == null) { //Изменили проверку
-          Navigator.of(context).pushReplacementNamed('/auth');
+        if (result == null) {
+          //  ИСПРАВЛЕННАЯ НАВИГАЦИЯ:
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false); //  ИЗМЕНЕНО
         } else {
           setState(() {
-            _error = result;  //  Показываем детальное сообщение об ошибке
+            _error = result;
           });
         }
       } catch (e) {
@@ -56,7 +57,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

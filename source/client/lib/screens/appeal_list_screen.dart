@@ -15,34 +15,32 @@ class AppealListScreen extends StatefulWidget {
 }
 
 class _AppealListScreenState extends State<AppealListScreen> {
-  bool _isLoading = false; //  Добавляем локальный isLoading
-  String? _error; //  Добавляем сообщение об ошибке
+  bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadAppeals(); //  Вызываем _loadAppeals (см. ниже)
+    _loadAppeals();
   }
 
-  //  Добавляем метод _loadAppeals
   Future<void> _loadAppeals() async {
     setState(() {
       _isLoading = true;
-      _error = null; //  Сбрасываем ошибку
+      _error = null;
     });
 
     try {
       await Provider.of<AppealProvider>(context, listen: false)
           .fetchAppeals()
-          .timeout(const Duration(seconds: 5)); //  Устанавливаем таймаут 5 секунд
-      // Если загрузка успешна, _error останется null, и список отобразится
+          .timeout(const Duration(seconds: 5));
     } catch (e) {
       setState(() {
-        _error = 'Failed to load appeals: $e'; //  Сохраняем сообщение об ошибке
+        _error = 'Failed to load appeals: $e';
       });
     } finally {
       setState(() {
-        _isLoading = false; //  В любом случае выключаем isLoading
+        _isLoading = false;
       });
     }
   }
@@ -53,6 +51,7 @@ class _AppealListScreenState extends State<AppealListScreen> {
       appBar: AppBar(
         title: const Text('Appeals'),
         actions: [
+          //  ВРЕМЕННАЯ кнопка для перехода к списку пользователей
           if (Provider.of<AuthProvider>(context, listen: false).role ==
               'inspector')
             IconButton(
@@ -72,18 +71,32 @@ class _AppealListScreenState extends State<AppealListScreen> {
       ),
       body: Consumer<AppealProvider>(
         builder: (context, appealProvider, child) {
+          //  Получаем роль текущего пользователя
+          final role = Provider.of<AuthProvider>(context, listen: false).role;
+
+          //  Фильтруем список обращений в зависимости от роли
+          List<Appeal> displayedAppeals = [];
+          if (role == 'inspector') {
+            displayedAppeals = appealProvider.appeals; //  Инспекторы видят все
+          } else {
+            //  Граждане видят только свои (фильтруем по user_id)
+
+            final currentUserId = Provider.of<AuthProvider>(context, listen: false).userId; //  Получаем ID пользователя
+            displayedAppeals = appealProvider.appeals.where((appeal) => appeal.userId == currentUserId).toList();
+          }
+
           return RefreshIndicator(
-            onRefresh: _loadAppeals, //  Используем _loadAppeals
-            child: _isLoading
+            onRefresh: _loadAppeals,
+            child:_isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _error != null //  Если есть ошибка - показываем сообщение
+                : _error != null
                 ? Center(child: Text(_error!))
-                : appealProvider.appeals.isEmpty
+                : displayedAppeals.isEmpty
                 ? const Center(child: Text('Нет существующих обращений'))
                 : ListView.builder(
-              itemCount: appealProvider.appeals.length,
+              itemCount: displayedAppeals.length,
               itemBuilder: (context, index) {
-                final appeal = appealProvider.appeals[index];
+                final appeal = displayedAppeals[index];
                 return ListTile(
                   title: Text(appeal.address),
                   subtitle: Text(
