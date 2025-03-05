@@ -153,17 +153,33 @@ def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(ge
     return db_user
 
 @router.delete("/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)): # Исправлено
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
+    #  Проверяем права доступа (только инспектор может удалять)
     if current_user.role != "inspector":
-        raise HTTPException(status_code=403, detail="Not authorized to update this user")
+        raise HTTPException(status_code=403, detail="Not authorized to delete users")
 
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    db.delete(db_user)
+    #  Проверяем, можно ли удалить пользователя
+    if db_user.role != "citizen": #Если не гражданин
+        db_user.role = "citizen"  #  Меняем роль на "citizen"
+
+    # Проверяем, есть ли у пользователя НЕЗАВЕРШЕННЫЕ обращения.
+    active_appeals_exist = db.query(models.Appeal).join(models.AppealStatus).filter(
+        models.Appeal.user_id == user_id,
+        models.AppealStatus.name.notin_(["Выполнено", "Отклонено"]) #  НЕ "Выполнено" И НЕ "Отклонено"
+    ).first() is not None
+
+    if active_appeals_exist:
+        raise HTTPException(status_code=400, detail="Cannot delete user: User has active appeals")
+
+    #  "Мягкое" удаление:  устанавливаем is_active = False
+    db_user.is_active = False  #  НЕ удаляем пользователя, а деактивируем
     db.commit()
-    return {"message": "User deleted"}
+
+    return {"message": "User deactivated"}  #  Сообщение об успешной деактивации
 
 @router.post("/appeals/", response_model=schemas.Appeal)
 async def create_appeal(
@@ -201,13 +217,18 @@ async def create_appeal(
     return db_appeal
 
 @router.get("/appeals/", response_model=List[schemas.Appeal])
-def read_appeals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)): # Исправлено
+def read_appeals(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     if current_user.role == "citizen":
-      appeals = db.query(models.Appeal).filter(models.Appeal.user_id == current_user.id).offset(skip).limit(limit).all()
+        appeals = db.query(models.Appeal).join(models.User).filter(
+            models.Appeal.user_id == current_user.id,
+            models.User.is_active == True
+        ).offset(skip).limit(limit).all()
     elif current_user.role == "inspector":
-      appeals = db.query(models.Appeal).offset(skip).limit(limit).all()
+        appeals = db.query(models.Appeal).join(models.User).filter(
+            models.User.is_active == True
+        ).offset(skip).limit(limit).all()
     else:
-      raise HTTPException(status_code=403, detail="Not enough permissions")
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     return appeals
 
 @router.get("/appeals/{appeal_id}", response_model=schemas.Appeal)
@@ -435,8 +456,7 @@ app.include_router(router)
 
 @app.on_event("startup")
 async def startup_event():
-    from . import models  #  Импортируем models здесь
-    models.Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         if not db.query(models.AppealStatus).first():
             statuses = [
@@ -444,7 +464,7 @@ async def startup_event():
                 models.AppealStatus(name="В работе"),
                 models.AppealStatus(name="Требует уточнений"),
                 models.AppealStatus(name="Отклонено"),
-                models.AppealStatus(name="Одобрено"),
+                models.AppealStatus(name="Выполнено"),
             ]
             db.add_all(statuses)
             db.commit()
