@@ -35,7 +35,12 @@ class ApiService {
 
   // --- Appeals ---
 
-  Future<List<Appeal>> getAppeals() async {
+  Future<List<Appeal>> getAppeals({
+    String sortBy = 'created_at',
+    String sortOrder = 'desc',
+    int? statusId,
+    int? categoryId,
+  }) async {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
@@ -47,8 +52,23 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
+
+    final queryParameters = <String, String>{
+      'sort_by': sortBy,
+      'sort_order': sortOrder,
+      if (statusId != null) 'status_id': statusId.toString(),
+      if (categoryId != null) 'category_id': categoryId.toString(),
+      //  УДАЛЯЕМ start_date и end_date:
+      // if (startDate != null) 'start_date': startDate.toIso8601String(),
+      // if (endDate != null) 'end_date': endDate.toIso8601String(),
+    };
+
+    final Uri uri = Uri.parse('$baseUrl/appeals/').replace(
+      queryParameters: queryParameters,
+    );
+
     final response = await http.get(
-      Uri.parse('$baseUrl/appeals/'),
+      uri,
       headers: headers,
     );
 
@@ -56,8 +76,7 @@ class ApiService {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
       return data.map((json) => Appeal.fromJson(json)).toList();
     } else {
-      //  Используем ApiException с кодом статуса и сообщением
-      throw ApiException('Failed to load appeals', response.statusCode);
+      throw ApiException('Failed to load appeals: ${response.statusCode}');
     }
   }
 
@@ -367,7 +386,7 @@ class ApiService {
     }
   }
 
-  Future<List<User>> getUsers() async {
+  Future<List<User>> getUsers({String sortBy = 'username', String sortOrder = 'asc', bool? activeFilter}) async { //  Добавили activeFilter
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
@@ -379,18 +398,27 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
+    final queryParameters = <String, String>{ //  Добавили
+      'sort_by': sortBy,
+      'sort_order': sortOrder,
+    };
+    if (activeFilter != null) {
+      queryParameters['is_active'] = activeFilter.toString(); //  Добавляем параметр в запрос
+    }
     final response = await http.get(
-      Uri.parse('$baseUrl/users/'),
+      Uri.parse('$baseUrl/users/').replace(queryParameters: queryParameters),  //  Добавили параметры
       headers: headers,
     );
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      print(data);
       return data.map((json) => User.fromJson(json)).toList();
     } else {
       throw ApiException('Failed to load users',response.statusCode);
     }
   }
+
   Future<dynamic> register(String username, String email, String password, String passwordConfirm, String? fullName, String role) async{
     final response = await http.post(
         Uri.parse('$baseUrl/users/'),

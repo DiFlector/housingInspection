@@ -8,6 +8,32 @@ class UserProvider with ChangeNotifier {
   List<User> _users = [];
   bool _isLoading = false;
 
+  String _sortBy = 'username'; //  Добавляем поле для хранения поля сортировки
+  String _sortOrder = 'asc';    //  Добавляем поле для хранения направления сортировки
+
+  String get sortBy => _sortBy;
+  String get sortOrder => _sortOrder;
+
+  //  Методы для установки параметров сортировки
+  void setSortBy(String field) {
+    _sortBy = field;
+    notifyListeners();
+  }
+
+  void setSortOrder(String order) {
+    _sortOrder = order;
+    notifyListeners();
+  }
+
+  bool? _activeFilter = true; //  null - все, true - активные, false - неактивные
+
+  bool? get activeFilter => _activeFilter;
+
+  void setActiveFilter(bool? value) {
+    _activeFilter = value;
+    notifyListeners();
+  }
+
   List<User> get users => _users;
   bool get isLoading => _isLoading;
 
@@ -15,11 +41,13 @@ class UserProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      _users = await _apiService.getUsers();
+      _users = await _apiService.getUsers(sortBy: _sortBy, sortOrder: _sortOrder, activeFilter: _activeFilter);
     } on ApiException catch (e) {
-      print(e); //  TODO:  Обработать ошибку (показать сообщение)
+      print(e);
+      rethrow;
     } catch (e) {
-      print('Ошибка при получении пользователей: $e');
+      print('Error fetching users: $e');
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -29,25 +57,24 @@ class UserProvider with ChangeNotifier {
   Future<void> addUser(User newUser, String password) async {
     try {
       final createdUser = await _apiService.createUser(
-        newUser.username,
-        newUser.email,
-        password,
-        newUser.fullName,
-        newUser.role,
+          newUser.username,
+          newUser.email,
+          password,
+          newUser.fullName,
+          newUser.role
       );
       _users.add(createdUser);
       notifyListeners();
-      //  Добавляем обработку ApiException
-    } on ApiException catch (e) {
-      rethrow; //Перебрасываем ошибку, чтобы обработать в виджете
+    } on ApiException catch (e){
+      rethrow;
     }
     catch (e){
       print('Error add user: $e');
-      rethrow; //  Перебрасываем ошибку, чтобы ее поймал виджет.
+      rethrow;
     }
   }
 
-  Future<void> updateUser(User updatedUser) async {
+  Future<User?> updateUser(User updatedUser) async {
     try{
       final newUser = await _apiService.updateUser(updatedUser);
       final index = _users.indexWhere((user) => user.id == newUser.id);
@@ -55,30 +82,28 @@ class UserProvider with ChangeNotifier {
         _users[index] = newUser;
         notifyListeners();
       }
-    } on ApiException catch (e){ //  Добавили обработку ошибок ApiException
-      rethrow; //Перебрасываем ошибку, чтобы обработать в виджете
+      return newUser;
+    } on ApiException catch (e){
+      print(e);
+      return null;
     }
     catch (e){
       print('Error update user: $e');
-      rethrow; //  Перебрасываем ошибку, чтобы ее поймал виджет.
+      return null;
     }
   }
 
   Future<void> deleteUser(int userId) async {
-    try {
+    try{
       await _apiService.deleteUser(userId);
       _users.removeWhere((user) => user.id == userId);
       notifyListeners();
-    } on ApiException catch (e) {
-      if(e.message == 'Failed to delete user: 400, {"detail":"Cannot delete user: it\'s in use"}'){
-        throw ApiException("Невозможно удалить пользователя с незакрытыми обращениями."); //  Конкретное сообщение
-      }
-      else{
-        rethrow; //  Перебрасываем другие ошибки
-      }
-    } catch (e) {
+    } on ApiException catch (e){
+      rethrow;
+    }
+    catch (e){
       print('Error delete user: $e');
-      rethrow; //  Перебрасываем другие ошибки
+      rethrow;
     }
   }
 }

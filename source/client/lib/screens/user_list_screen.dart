@@ -14,40 +14,46 @@ class UserListScreen extends StatefulWidget {
 }
 
 class _UserListScreenState extends State<UserListScreen> {
+  bool? _activeFilter = true; //  Начальное значение фильтра (активные)
+
   @override
   void initState() {
     super.initState();
-    final role = Provider.of<AuthProvider>(context, listen: false).role;
-    if (role != 'inspector') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacementNamed('/');
-      });
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) { //  ОТКЛАДЫВАЕМ
-        Provider.of<UserProvider>(context, listen: false).fetchUsers();
-      });
+    WidgetsBinding.instance.addPostFrameCallback((_) { //  ОТКЛАДЫВАЕМ
+      _loadUsers(); // Вызываем _loadUsers(), а не fetchUsers() напрямую
+    });
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.fetchUsers();
+    } on ApiException catch (e) {
+      _showErrorDialog(context, e.message);
+    } catch (e) {
+      _showErrorDialog(context, 'Failed to load users: $e');
     }
   }
 
   Future<void> _showErrorDialog(BuildContext context, String message) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, //  Нельзя закрыть диалог, нажав мимо
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Ошибка'),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                Text("Невозможно удалить пользователя с незакрытыми обращениями."),
+                Text(message),
               ],
             ),
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Ок'),
+              child: const Text('OK'),
               onPressed: () {
-                Navigator.of(context).pop(); //  Закрываем диалог
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -65,78 +71,216 @@ class _UserListScreenState extends State<UserListScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Пользователи'), //  Перевод
-      ),
-      body: Consumer<UserProvider>(
-        builder: (context, userProvider, child) {
-          if (userProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (userProvider.users.isEmpty) {
-            return const Center(child: Text('Пользователи не найдены.')); //  Перевод
-          } else {
-            return ListView.builder(
-              itemCount: userProvider.users.length,
-              itemBuilder: (context, index) {
-                final user = userProvider.users[index];
-                return ListTile(
-                  title: Text(user.username),
-                  subtitle: Text(user.email),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => UserEditScreen(user: user),
-                            ),
-                          );
-                        },
-                        tooltip: 'Редактировать', //  Перевод
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        tooltip: 'Удалить', //  Перевод
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              return AlertDialog(
-                                title: const Text('Подтверждение удаления'), //  Перевод
-                                content: Text('Вы уверены, что хотите удалить пользователя "${user.username}"?'),  //  Перевод и подстановка имени
-                                actions: <Widget>[
-                                  TextButton(
-                                    child: const Text('Отмена'), //  Перевод
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                    },
-                                  ),
-                                  TextButton(
-                                    child: const Text('Удалить'), //  Перевод
-                                    onPressed: () async {
-                                      Navigator.of(context).pop();
-                                      try {
-                                        await Provider.of<UserProvider>(context, listen: false).deleteUser(user.id);
-                                      } on ApiException catch (e) {
-                                        _showErrorDialog(context, e.message);
-                                      }
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                );
+          title: const Text('Пользователи'),
+          actions: [
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.filter_list),
+              onSelected: (String item) {
+                switch (item) {
+                  case 'username_asc':
+                    Provider.of<UserProvider>(context, listen: false).setSortBy('username');
+                    Provider.of<UserProvider>(context, listen: false).setSortOrder('asc');
+                    break;
+                  case 'username_desc':
+                    Provider.of<UserProvider>(context, listen: false).setSortBy('username');
+                    Provider.of<UserProvider>(context, listen: false).setSortOrder('desc');
+                    break;
+                  case 'email_asc':
+                    Provider.of<UserProvider>(context, listen: false).setSortBy('email');
+                    Provider.of<UserProvider>(context, listen: false).setSortOrder('asc');
+                    break;
+                  case 'email_desc':
+                    Provider.of<UserProvider>(context, listen: false).setSortBy('email');
+                    Provider.of<UserProvider>(context, listen: false).setSortOrder('desc');
+                    break;
+                  case 'role_asc':
+                    Provider.of<UserProvider>(context, listen: false).setSortBy('role');
+                    Provider.of<UserProvider>(context, listen: false).setSortOrder('asc');
+                    break;
+                  case 'role_desc':
+                    Provider.of<UserProvider>(context, listen: false).setSortBy('role');
+                    Provider.of<UserProvider>(context, listen: false).setSortOrder('desc');
+                    break;
+                  case 'date_asc':
+                    Provider.of<UserProvider>(context, listen: false).setSortBy('created_at');
+                    Provider.of<UserProvider>(context, listen: false).setSortOrder('asc');
+                    break;
+                  case 'date_desc':
+                    Provider.of<UserProvider>(context, listen: false).setSortBy('created_at');
+                    Provider.of<UserProvider>(context, listen: false).setSortOrder('desc');
+                    break;
+                }
+                _loadUsers();
               },
-            );
-          }
-        },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'username_asc',
+                  child: Text('Имя пользователя (А-Я)'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'username_desc',
+                  child: Text('Имя пользователя (Я-А)'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'email_asc',
+                  child: Text('Email (А-Я)'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'email_desc',
+                  child: Text('Email (Я-А)'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'role_asc',
+                  child: Text('Роль (А-Я)'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'role_desc',
+                  child: Text('Роль (Я-А)'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'date_asc',
+                  child: Text('Дата создания (сначала старые)'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'date_desc',
+                  child: Text('Дата создания (сначала новые)'),
+                ),
+              ],
+            ),
+          ]
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _activeFilter = true;
+                    });
+                    Provider.of<UserProvider>(context, listen: false)
+                        .setActiveFilter(true);
+                    _loadUsers();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: _activeFilter == true ? Colors.blue : Colors.grey,
+                    ),
+                  ),
+                  child: const Text('Активные'),
+                ),
+                OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _activeFilter = false;
+                    });
+                    Provider.of<UserProvider>(context, listen: false)
+                        .setActiveFilter(false);
+                    _loadUsers();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: _activeFilter == false ? Colors.blue : Colors.grey,
+                    ),
+                  ),
+                  child: const Text('Неактивные'),
+                ),
+                OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _activeFilter = null;
+                    });
+                    Provider.of<UserProvider>(context, listen: false)
+                        .setActiveFilter(null);
+                    _loadUsers();
+                  },
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: _activeFilter == null ? Colors.blue : Colors.grey,
+                    ),
+                  ),
+                  child: const Text('Все'),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Consumer<UserProvider>(
+              builder: (context, userProvider, child) {
+                if (userProvider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                } else if (userProvider.users.isEmpty) {
+                  return const Center(child: Text('Пользователи не найдены.'));
+                } else {
+                  return ListView.builder(
+                    itemCount: userProvider.users.length,
+                    itemBuilder: (context, index) {
+                      final user = userProvider.users[index];
+                      return ListTile(
+                        title: Text(user.username),
+                        subtitle: Text(user.email),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => UserEditScreen(user: user),
+                                  ),
+                                );
+                              },
+                              tooltip: 'Редактировать',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete),
+                              tooltip: 'Удалить',
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text('Подтверждение удаления'),
+                                      content: Text('Вы уверены, что хотите удалить пользователя "${user.username}"?'),
+                                      actions: <Widget>[
+                                        TextButton(
+                                          child: const Text('Отмена'),
+                                          onPressed: () {
+                                            Navigator.of(context).pop();
+                                          },
+                                        ),
+                                        TextButton(
+                                          child: const Text('Удалить'),
+                                          onPressed: () async {
+                                            Navigator.of(context).pop();
+                                            try {
+                                              await Provider.of<UserProvider>(context, listen: false).deleteUser(user.id);
+                                            } on ApiException catch (e) {
+                                              _showErrorDialog(context, e.message);
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }
+              },
+            ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -148,7 +292,7 @@ class _UserListScreenState extends State<UserListScreen> {
           );
         },
         child: const Icon(Icons.add),
-        tooltip: 'Добавить пользователя', //  Перевод
+        tooltip: 'Добавить пользователя',
       ),
     );
   }
