@@ -386,7 +386,46 @@ class ApiService {
     }
   }
 
-  Future<List<User>> getUsers({String sortBy = 'username', String sortOrder = 'asc', bool? activeFilter}) async { //  Добавили activeFilter
+  Future<List<User>> getUsersActive({String sortBy = 'username', String sortOrder = 'asc'}) async {
+    return _getUsersByActivity(sortBy: sortBy, sortOrder: sortOrder, active: true);
+  }
+
+  Future<List<User>> getUsersInactive({String sortBy = 'username', String sortOrder = 'asc'}) async {
+    return _getUsersByActivity(sortBy: sortBy, sortOrder: sortOrder, active: false);
+  }
+
+  Future<List<User>> _getUsersByActivity({String sortBy = 'username', String sortOrder = 'asc', required bool active}) async {
+    final token = await _getToken();
+
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final queryParameters = <String, String>{
+      'sort_by': sortBy,
+      'sort_order': sortOrder,
+      'is_active': active.toString(), //  Всегда передаем is_active
+    };
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/').replace(queryParameters: queryParameters),
+      headers: headers,
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data.map((json) => User.fromJson(json)).toList();
+    } else {
+      throw ApiException('Failed to load users',response.statusCode);
+    }
+  }
+
+  // getUsers убираем activeFilter
+  Future<List<User>> getUsers({String sortBy = 'username', String sortOrder = 'asc'}) async {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
@@ -402,9 +441,7 @@ class ApiService {
       'sort_by': sortBy,
       'sort_order': sortOrder,
     };
-    if (activeFilter != null) {
-      queryParameters['is_active'] = activeFilter.toString(); //  Добавляем параметр в запрос
-    }
+
     final response = await http.get(
       Uri.parse('$baseUrl/users/').replace(queryParameters: queryParameters),  //  Добавили параметры
       headers: headers,
@@ -412,7 +449,6 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-      print(data);
       return data.map((json) => User.fromJson(json)).toList();
     } else {
       throw ApiException('Failed to load users',response.statusCode);

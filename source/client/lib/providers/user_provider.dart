@@ -25,12 +25,13 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  bool? _activeFilter = true; //  null - все, true - активные, false - неактивные
+  bool? _activeFilter = null; //  null - все, true - активные, false - неактивные
 
   bool? get activeFilter => _activeFilter;
 
   void setActiveFilter(bool? value) {
     _activeFilter = value;
+    fetchUsers(); // Добавляем явный вызов
     notifyListeners();
   }
 
@@ -41,7 +42,35 @@ class UserProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      _users = await _apiService.getUsers(sortBy: _sortBy, sortOrder: _sortOrder, activeFilter: _activeFilter);
+      if (_activeFilter == true) {
+        _users = await _apiService.getUsersActive(sortBy: _sortBy, sortOrder: _sortOrder);
+      } else if (_activeFilter == false) {
+        _users = await _apiService.getUsersInactive(sortBy: _sortBy, sortOrder: _sortOrder);
+      } else { // _activeFilter == null
+        final activeUsers = await _apiService.getUsersActive(sortBy: _sortBy, sortOrder: _sortOrder);
+        final inactiveUsers = await _apiService.getUsersInactive(sortBy: _sortBy, sortOrder: _sortOrder);
+        _users = [...activeUsers, ...inactiveUsers]; // Объединяем списки
+
+        // Сортируем объединенный список:
+        if (_sortBy == 'username') {
+          _users.sort((a, b) => _sortOrder == 'asc'
+              ? a.username.compareTo(b.username)
+              : b.username.compareTo(a.username));
+        } else if (_sortBy == 'email') {
+          _users.sort((a, b) => _sortOrder == 'asc'
+              ? a.email.compareTo(b.email)
+              : b.email.compareTo(a.email));
+        } else if (_sortBy == 'role') {
+          _users.sort((a, b) => _sortOrder == 'asc'
+              ? a.role.compareTo(b.role)
+              : b.role.compareTo(a.role));
+        } else if (_sortBy == 'created_at') {
+          _users.sort((a, b) => _sortOrder == 'asc'
+              ? a.createdAt.compareTo(b.createdAt)
+              : b.createdAt.compareTo(a.createdAt));
+        }
+
+      }
     } on ApiException catch (e) {
       print(e);
       rethrow;

@@ -14,13 +14,14 @@ class UserListScreen extends StatefulWidget {
 }
 
 class _UserListScreenState extends State<UserListScreen> {
-  bool? _activeFilter = true; //  Начальное значение фильтра (активные)
+  // bool? _activeFilter = true; // Убираем эту строку
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) { //  ОТКЛАДЫВАЕМ
-      _loadUsers(); // Вызываем _loadUsers(), а не fetchUsers() напрямую
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<UserProvider>(context, listen: false).setActiveFilter(true); //  Вызываем setActiveFilter(true)
+      _loadUsers();
     });
   }
 
@@ -158,48 +159,48 @@ class _UserListScreenState extends State<UserListScreen> {
               children: [
                 OutlinedButton(
                   onPressed: () {
-                    setState(() {
-                      _activeFilter = true;
-                    });
+                    // setState(() { //Убираем
+                    //   _activeFilter = true;
+                    // });
                     Provider.of<UserProvider>(context, listen: false)
                         .setActiveFilter(true);
-                    _loadUsers();
+                    // _loadUsers(); //Убираем
                   },
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                      color: _activeFilter == true ? Colors.blue : Colors.grey,
+                      color: Provider.of<UserProvider>(context).activeFilter == true ? Colors.blue : Colors.grey, //Изменено
                     ),
                   ),
                   child: const Text('Активные'),
                 ),
                 OutlinedButton(
                   onPressed: () {
-                    setState(() {
-                      _activeFilter = false;
-                    });
+                    // setState(() {//Убираем
+                    //   _activeFilter = false;
+                    // });
                     Provider.of<UserProvider>(context, listen: false)
                         .setActiveFilter(false);
-                    _loadUsers();
+                    // _loadUsers();//Убираем
                   },
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                      color: _activeFilter == false ? Colors.blue : Colors.grey,
+                      color: Provider.of<UserProvider>(context).activeFilter == false ? Colors.blue : Colors.grey, //Изменено
                     ),
                   ),
                   child: const Text('Неактивные'),
                 ),
                 OutlinedButton(
                   onPressed: () {
-                    setState(() {
-                      _activeFilter = null;
-                    });
+                    // setState(() {//Убираем
+                    //   _activeFilter = null;
+                    // });
                     Provider.of<UserProvider>(context, listen: false)
                         .setActiveFilter(null);
-                    _loadUsers();
+                    // _loadUsers();//Убираем
                   },
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(
-                      color: _activeFilter == null ? Colors.blue : Colors.grey,
+                      color: Provider.of<UserProvider>(context).activeFilter == null ? Colors.blue : Colors.grey, //Изменено
                     ),
                   ),
                   child: const Text('Все'),
