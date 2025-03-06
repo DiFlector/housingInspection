@@ -125,18 +125,31 @@ def read_user(user_id: int, db: Session = Depends(get_db), current_user: models.
     return db_user
 
 @router.put("/users/{user_id}", response_model=schemas.User)
-def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)): # Исправлено
-    if current_user.role == "inspector":
-        db_user = db.query(models.User).filter(models.User.id == user_id).first()
-        if db_user is None:
-            raise HTTPException(status_code=404, detail="User not found")
+def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
+    if current_user.role != "inspector" and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this user")
 
-        for var, value in user.model_dump().items():
-            if value is not None:
-                setattr(db_user, var, value)
-        db.commit()
-        db.refresh(db_user)
-        return db_user
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    #  ПРОВЕРКА УНИКАЛЬНОСТИ USERNAME и EMAIL
+    if user.username != db_user.username:  #  Если username изменился
+        existing_user = db.query(models.User).filter(models.User.username == user.username).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
+
+    if user.email != db_user.email:  #  Если email изменился
+        existing_user = db.query(models.User).filter(models.User.email == user.email).first()
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует")
+
+
+    for var, value in user.model_dump(exclude_unset=False).items():
+        setattr(db_user, var, value)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
 
     if current_user.id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized to update this user")
@@ -351,9 +364,15 @@ def delete_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: m
     return {"message": "Appeal deleted"}
 
 @router.post("/appeal_statuses/", response_model=schemas.AppealStatus)
-def create_appeal_status(status: schemas.AppealStatusCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)): # Исправлено
+def create_appeal_status(status: schemas.AppealStatusCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized")
+
+     #  ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ СТАТУС С ТАКИМ ИМЕНЕМ
+    existing_status = db.query(models.AppealStatus).filter(models.AppealStatus.name == status.name).first()
+    if existing_status:
+        raise HTTPException(status_code=400, detail="Статус с таким названием уже существует")  #  ИНФОРМАТИВНОЕ СООБЩЕНИЕ
+
     db_status = models.AppealStatus(**status.model_dump())
     db.add(db_status)
     db.commit()
@@ -366,13 +385,20 @@ def read_appeal_statuses(skip: int = 0, limit: int = 100, db: Session = Depends(
     return statuses
 
 @router.put("/appeal_statuses/{status_id}", response_model=schemas.AppealStatus)
-def update_appeal_status(status_id: int, status: schemas.AppealStatusCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):# Исправлено
+def update_appeal_status(status_id: int, status: schemas.AppealStatusCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized")
+
     db_status = db.query(models.AppealStatus).filter(models.AppealStatus.id == status_id).first()
     if db_status is None:
         raise HTTPException(status_code=404, detail="Status not found")
-    for var, value in status.model_dump().items():
+    #  ПРОВЕРКА УНИКАЛЬНОСТИ ИМЕНИ
+    if db_status.name != status.name: #Если имя изменилось
+        existing_status = db.query(models.AppealStatus).filter(models.AppealStatus.name == status.name).first()
+        if existing_status:
+            raise HTTPException(status_code=400, detail="Статус с таким названием уже существует")
+
+    for var, value in status.model_dump(exclude_unset=False).items():
         setattr(db_status, var, value)
     db.commit()
     db.refresh(db_status)
@@ -394,9 +420,15 @@ def delete_appeal_status(status_id: int, db: Session = Depends(get_db), current_
     return {"message": "Status deleted"}
 
 @router.post("/appeal_categories/", response_model=schemas.AppealCategory)
-def create_appeal_category(category: schemas.AppealCategoryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):# Исправлено
+def create_appeal_category(category: schemas.AppealCategoryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized")
+
+    #  ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ КАТЕГОРИЯ С ТАКИМ ИМЕНЕМ
+    existing_category = db.query(models.AppealCategory).filter(models.AppealCategory.name == category.name).first()
+    if existing_category:
+        raise HTTPException(status_code=400, detail="Категория с таким названием уже существует")  #  ИНФОРМАТИВНОЕ СООБЩЕНИЕ
+
     db_category = models.AppealCategory(**category.model_dump())
     db.add(db_category)
     db.commit()
@@ -409,13 +441,21 @@ def read_appeal_categories(skip: int = 0, limit: int = 100, db: Session = Depend
     return categories
 
 @router.put("/appeal_categories/{category_id}", response_model=schemas.AppealCategory)
-def update_appeal_category(category_id: int, category: schemas.AppealCategoryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):# Исправлено
+def update_appeal_category(category_id: int, category: schemas.AppealCategoryCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized")
+
     db_category = db.query(models.AppealCategory).filter(models.AppealCategory.id == category_id).first()
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
-    for var, value in category.model_dump().items():
+
+    #  ПРОВЕРКА УНИКАЛЬНОСТИ ИМЕНИ
+    if db_category.name != category.name:  #  Если имя изменилось
+        existing_category = db.query(models.AppealCategory).filter(models.AppealCategory.name == category.name).first()
+        if existing_category:
+            raise HTTPException(status_code=400, detail="Категория с таким названием уже существует")
+
+    for var, value in category.model_dump(exclude_unset=False).items():
         setattr(db_category, var, value)
     db.commit()
     db.refresh(db_category)
@@ -445,9 +485,18 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    #  ДОБАВЛЯЕМ ПРОВЕРКУ АКТИВНОСТИ ПОЛЬЗОВАТЕЛЯ:
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,  #  Или другой код, например, 403 Forbidden
+            detail="User is inactive",
+            headers={"WWW-Authenticate": "Bearer"},  #  Можно не добавлять, но лучше оставить
+        )
+
     access_token_expires = timedelta(minutes=int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")))
     access_token = create_access_token(
-        data={"sub": user.username, "role": user.role, "user_id": user.id},  #  Передаём user_id
+        data={"sub": user.username, "role": user.role, "user_id": user.id},
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
