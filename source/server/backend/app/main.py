@@ -1,23 +1,20 @@
 import os
-from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Query
-from sqlalchemy import create_engine, text
-from sqlalchemy import desc, asc
+from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Query, UploadFile, File, Form
+from sqlalchemy import create_engine, text, desc, asc
 from sqlalchemy.orm import sessionmaker, Session
 from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
-
 from . import models, schemas
-from .auth import get_password_hash, verify_password, create_access_token, decode_token  # Импорты
+from .auth import get_password_hash, verify_password, create_access_token, decode_token
 from .models import Base
 from jose import jwt, JWTError
-
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import timedelta, datetime
-
-from fastapi import UploadFile, File, Form
 import shutil
-
 import uuid
+import boto3  # Добавляем boto3
+from botocore.exceptions import ClientError # Добавляем для обработки ошибок
+
 
 router = APIRouter()
 
@@ -25,13 +22,23 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+# Добавляем функцию для получения клиента Yandex Cloud
+def get_s3_client():
+    session = boto3.session.Session()
+    s3 = session.client(
+        service_name='s3',
+        endpoint_url=os.environ.get("YC_ENDPOINT_URL"),
+        aws_access_key_id=os.environ.get("YC_AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("YC_AWS_SECRET_ACCESS_KEY"),
+    )
+    return s3
 
 app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") #  OAuth2, tokenUrl - относительный путь
@@ -222,34 +229,62 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: model
 @router.post("/appeals/", response_model=schemas.Appeal)
 async def create_appeal(
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user), # Исправлено
+    current_user: models.User = Depends(get_current_active_user),
     address: str = Form(...),
     category_id: int = Form(...),
     description: Optional[str] = Form(None),
     files: List[UploadFile] = File(None)
 ):
-    db_appeal = models.Appeal(address=address, category_id=category_id, description=description, user_id=current_user.id, status_id=1)
+    db_appeal = models.Appeal(
+        address=address,
+        category_id=category_id,
+        description=description,
+        user_id=current_user.id,
+        status_id=1
+    )
     db.add(db_appeal)
-    db.flush()
+    db.flush()  # Получаем ID нового обращения
 
+    s3_client = get_s3_client()  # Получаем клиент S3
+    bucket_name = os.environ.get("YC_BUCKET_NAME")
     file_paths = []
+
     if files:
         for file in files:
             try:
                 file_ext = os.path.splitext(file.filename)[1]
-                file_name = f"{uuid.uuid4()}{file_ext}"
-                file_path = os.path.join("uploads", file_name)
+                file_name = f"{uuid.uuid4()}{file_ext}"  # Уникальное имя файла
 
-                with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
+                # Загружаем файл в Yandex Cloud
+                s3_client.upload_fileobj(
+                    Fileobj=file.file,
+                    Bucket=bucket_name,
+                    Key=file_name,  # Используем уникальное имя
+                    ExtraArgs={
+                        'ACL': 'public-read',  # Делаем файл публично доступным (для скачивания)
+                    }
+                )
 
-                file_paths.append(file_path)
-            except Exception:
-                raise HTTPException(status_code=500, detail="Error saving file")
+                # Формируем URL файла
+                file_url = f"{os.environ.get('YC_ENDPOINT_URL')}/{bucket_name}/{file_name}"
+                file_paths.append(file_url)
+
+                # Получаем размер и тип файла
+                file.file.seek(0, os.SEEK_END)  # Переходим в конец файла
+                file_size = file.file.tell()  # Получаем размер в байтах
+                file.file.seek(0)  # Возвращаемся в начало файла
+                file_type = file.content_type
+
+
+            except ClientError as e:
+                print(f"Error uploading file to Yandex Cloud: {e}")
+                raise HTTPException(status_code=500, detail=f"Error uploading file to Yandex Cloud: {e}")
             finally:
                 await file.close()
 
     db_appeal.file_paths = ",".join(file_paths)
+    db_appeal.file_size = file_size      # Сохраняем размер
+    db_appeal.file_type = file_type      # Сохраняем тип
     db.commit()
     db.refresh(db_appeal)
     return db_appeal
@@ -316,7 +351,7 @@ def read_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: mod
 async def update_appeal(
     appeal_id: int,
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user), # Исправлено
+    current_user: models.User = Depends(get_current_active_user),
     address: Optional[str] = Form(None),
     category_id: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
@@ -327,10 +362,9 @@ async def update_appeal(
     if db_appeal is None:
         raise HTTPException(status_code=404, detail="Appeal not found")
 
-    if current_user.role == "inspector":
-        pass
-    elif current_user.id != db_appeal.user_id:
+    if current_user.role != "inspector":  #  Редактировать может только инспектор
         raise HTTPException(status_code=403, detail="Not authorized to update this appeal")
+
 
     # --- 1. Сохраняем старый список файлов ---
     old_file_paths = db_appeal.file_paths.split(",") if db_appeal.file_paths else []
@@ -347,20 +381,38 @@ async def update_appeal(
         db_appeal.status_id = status_id
 
     # --- 3. Обрабатываем новые файлы ---
-    new_file_paths = []  #  Список для *новых* файлов
+    s3_client = get_s3_client()  # Клиент S3
+    bucket_name = os.environ.get("YC_BUCKET_NAME")
+    new_file_paths = []
+
     if files:
         for file in files:
             try:
                 file_ext = os.path.splitext(file.filename)[1]
                 file_name = f"{uuid.uuid4()}{file_ext}"
-                file_path = os.path.join("uploads", file_name)
 
-                with open(file_path, "wb") as buffer:
-                    shutil.copyfileobj(file.file, buffer)
+                # Загружаем в Yandex Cloud
+                s3_client.upload_fileobj(
+                    Fileobj=file.file,
+                    Bucket=bucket_name,
+                    Key=file_name,
+                    ExtraArgs={
+                        'ACL': 'public-read',  # Публичный доступ
+                    }
+                )
+                file_url = f"{os.environ.get('YC_ENDPOINT_URL')}/{bucket_name}/{file_name}"
+                new_file_paths.append(file_url)
 
-                new_file_paths.append(file_path)
-            except Exception:
-                raise HTTPException(status_code=500, detail="Error saving file")
+                 # Получаем размер и тип файла
+                file.file.seek(0, os.SEEK_END)
+                file_size = file.file.tell()
+                file.file.seek(0)
+                file_type = file.content_type
+
+
+            except ClientError as e:
+                print(f"Error uploading file to Yandex Cloud: {e}")
+                raise HTTPException(status_code=500, detail=f"Error uploading file to Yandex Cloud: {e}")
             finally:
                 await file.close()
 
@@ -379,19 +431,22 @@ async def update_appeal(
             current_file_paths.append(file_path)
 
 
-    # --- 5. Удаляем "лишние" файлы ---
+    # --- 5. Удаляем "лишние" файлы из Yandex Cloud ---
     for file_path in old_file_paths:
         if file_path not in current_file_paths:
             try:
-                os.remove(file_path)
-            except FileNotFoundError:
-                print(f"File not found: {file_path}")
-            except Exception as e:
-                print(f"Error deleting file {file_path}: {e}")
+                #  Извлекаем key из URL
+                file_name = file_path.split('/')[-1]
+                s3_client.delete_object(Bucket=bucket_name, Key=file_name)
+            except ClientError as e:
+                print(f"Error deleting file from Yandex Cloud: {e}")
+                #  Не выбрасываем исключение, продолжаем удалять другие файлы
+
 
     # --- 6. Сохраняем новый список файлов в БД ---
     db_appeal.file_paths = ",".join(current_file_paths)
-
+    db_appeal.file_size = file_size  # Обновляем размер
+    db_appeal.file_type = file_type  # Обновляем тип
     db.commit()
     db.refresh(db_appeal)
     return db_appeal
@@ -406,17 +461,23 @@ def delete_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: m
     if current_user.role != "inspector" and current_user.role != "citizen":
         raise HTTPException(status_code=403, detail="Not authorized to delete this appeal")
 
+    s3_client = get_s3_client()  # Клиент S3
+    bucket_name = os.environ.get("YC_BUCKET_NAME")
+
     if db_appeal.file_paths:
         file_paths = db_appeal.file_paths.split(",")
         for file_path in file_paths:
             try:
                 file_path = file_path.strip() #Убираем пробелы
                 if file_path:
-                    os.remove(file_path)
-            except FileNotFoundError:
-                print(f"File not found: {file_path}")
-            except Exception as e:
-                print(f"Error deleting file {file_path}: {e}")
+                    #  Извлекаем key из URL
+                    file_name = file_path.split('/')[-1]
+                    s3_client.delete_object(Bucket=bucket_name, Key=file_name)
+
+            except ClientError as e:
+                print(f"Error deleting file from Yandex Cloud: {e}")
+                #  Не выбрасываем исключение, продолжаем удалять другие файлы
+
 
     db.delete(db_appeal)
     db.commit()
@@ -430,32 +491,7 @@ def create_appeal_status(status: schemas.AppealStatusCreate, db: Session = Depen
      #  ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ СТАТУС С ТАКИМ ИМЕНЕМ
     existing_status = db.query(models.AppealStatus).filter(models.AppealStatus.name == status.name).first()
     if existing_status:
-        raise HTTPException(status_code=400, detail="Статус с таким названием уже существует")  #  ИНФОРМАТИВНОЕ СООБЩЕНИЕ
-
-    db_status = models.AppealStatus(**status.model_dump())
-    db.add(db_status)
-    db.commit()
-    db.refresh(db_status)
-    return db_status
-
-@router.get("/appeal_statuses/", response_model=List[schemas.AppealStatus])
-def read_appeal_statuses(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    statuses = db.query(models.AppealStatus).offset(skip).limit(limit).all()
-    return statuses
-
-@router.put("/appeal_statuses/{status_id}", response_model=schemas.AppealStatus)
-def update_appeal_status(status_id: int, status: schemas.AppealStatusCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
-    if current_user.role != "inspector":
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-    db_status = db.query(models.AppealStatus).filter(models.AppealStatus.id == status_id).first()
-    if db_status is None:
-        raise HTTPException(status_code=404, detail="Status not found")
-    #  ПРОВЕРКА УНИКАЛЬНОСТИ ИМЕНИ
-    if db_status.name != status.name: #Если имя изменилось
-        existing_status = db.query(models.AppealStatus).filter(models.AppealStatus.name == status.name).first()
-        if existing_status:
-            raise HTTPException(status_code=400, detail="Статус с таким названием уже существует")
+        raise HTTPException(status_code=400, detail="Статус с таким названием уже существует")
 
     for var, value in status.model_dump(exclude_unset=False).items():
         setattr(db_status, var, value)

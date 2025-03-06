@@ -55,6 +55,8 @@ class Appeal(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
     file_paths = Column(Text, nullable=True) # Храним пути к файлам через запятую
+    file_size = Column(Integer, nullable=True) # Добавляем file_size
+    file_type = Column(String, nullable=True)  # Добавляем file_type
 
     user = relationship("User", back_populates="appeals")
     status = relationship("AppealStatus", back_populates="appeals")

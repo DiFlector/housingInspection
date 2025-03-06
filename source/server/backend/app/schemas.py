@@ -43,6 +43,8 @@ class AppealBase(BaseModel):
     address: str = Field(..., example="ул. Пушкина, д. Колотушкина")
     description: Optional[str] = Field(None, example="Описание проблемы")
     category_id: int = Field(..., example=1)
+    file_size: Optional[int] = None  # Добавляем file_size
+    file_type: Optional[str] = None  # Добавляем file_type
     #file_paths: Optional[str] = None  # Добавляем в AppealBase
 
 # Схема для создания обращения (Create)
