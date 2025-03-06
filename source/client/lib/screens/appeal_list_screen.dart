@@ -19,7 +19,10 @@ class _AppealListScreenState extends State<AppealListScreen> {
   @override
   void initState() {
     super.initState();
-    Provider.of<AppealProvider>(context, listen: false).fetchAppeals();
+    //  ОТКЛАДЫВАЕМ вызов fetchAppeals:
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AppealProvider>(context, listen: false).fetchAppeals();
+    });
   }
 
   @override

@@ -22,8 +22,10 @@ class _StatusListScreenState extends State<StatusListScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacementNamed('/');
       });
-    } else {
-      Provider.of<StatusProvider>(context, listen: false).fetchStatuses();
+    } {
+      WidgetsBinding.instance.addPostFrameCallback((_) { //  ОТКЛАДЫВАЕМ
+        Provider.of<StatusProvider>(context, listen: false).fetchStatuses();
+      });
     }
   }
 

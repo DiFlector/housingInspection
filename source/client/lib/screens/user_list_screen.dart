@@ -23,7 +23,9 @@ class _UserListScreenState extends State<UserListScreen> {
         Navigator.of(context).pushReplacementNamed('/');
       });
     } else {
-      Provider.of<UserProvider>(context, listen: false).fetchUsers();
+      WidgetsBinding.instance.addPostFrameCallback((_) { //  ОТКЛАДЫВАЕМ
+        Provider.of<UserProvider>(context, listen: false).fetchUsers();
+      });
     }
   }
 
