@@ -9,20 +9,20 @@ class CategoryProvider with ChangeNotifier {
   List<AppealCategory> get categories => _categories;
 
   Future<void> fetchCategories() async {
-    print("Fetching categories..."); // Добавляем вывод
+    print("Получение категорий..."); // Добавляем вывод
     try { // Добавляем try-catch
       _categories = await _apiService.getAppealCategories();
-      print("Categories fetched: ${_categories.length}"); // Добавляем вывод
+      print("Категорий получено:: ${_categories.length}"); // Добавляем вывод
       notifyListeners();
     } catch (e) {
-      print("Error fetching categories: $e"); // Добавляем вывод ошибки
+      print("Ошибка при получении категорий: $e"); // Добавляем вывод ошибки
     }
   }
   String getCategoryName(int id) {
     print("id = $id");
     final category = _categories.firstWhere(
           (cat) => cat.id == id,
-      orElse: () => AppealCategory(id: 0, name: 'Unknown'), // Обработка случая, когда категория не найдена
+      orElse: () => AppealCategory(id: 0, name: 'Неизвестно'), // Обработка случая, когда категория не найдена
     );
     print(category);
     return category.name;

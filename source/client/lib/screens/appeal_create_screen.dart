@@ -63,9 +63,9 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
       await Provider.of<StatusProvider>(context, listen: false).statuses;
       setState(() {});
     } catch (e) {
-      print('Error loading categories and statuses: $e');
+      print('Ошибка загрузки категорий и статусов: $e');
       setState(() {
-        _error = 'Failed to load categories and statuses: $e'; //  Показываем ошибку
+        _error = 'Загрузка категорий и статусов не удалась: $e'; //  Показываем ошибку
       });
     }
   }
@@ -96,7 +96,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Create Appeal'),
+        title: const Text('Создать обращение'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -107,10 +107,10 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
           ListView(
             children: [
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Address'),
+                decoration: const InputDecoration(labelText: 'Адрес'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter an address';
+                    return 'Пожалуйста, введите адрес';
                   }
                   return null;
                 },
@@ -119,7 +119,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
                 },
               ),
               DropdownButtonFormField<int>(
-                decoration: const InputDecoration(labelText: 'Category'),
+                decoration: const InputDecoration(labelText: 'Категория'),
                 value: _categoryId,
                 items: _categories.map((category) {
                   return DropdownMenuItem<int>(
@@ -134,7 +134,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
                 },
               ),
               TextFormField(
-                decoration: const InputDecoration(labelText: 'Description'),
+                decoration: const InputDecoration(labelText: 'Описание'),
                 maxLines: 3,
                 onSaved: (value) {
                   _description = value ?? '';
@@ -143,11 +143,11 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _pickFiles,
-                child: const Text('Select Files'),
+                child: const Text('Добавить файлы'),
               ),
               ElevatedButton(
                 onPressed: _takePicture,
-                child: const Text('Take a Picture'),
+                child: const Text('Добавить фото'),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -190,7 +190,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
                       Navigator.of(context).pop(); //  Возвращаемся назад
                     } catch (e) {
                       setState(() {
-                        _error = 'Error creating appeal: $e'; //  Показываем ошибку
+                        _error = 'Ошибка при создании обращения: $e'; //  Показываем ошибку
                       });
                     } finally {
                       setState(() {
@@ -199,7 +199,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
                     }
                   }
                 },
-                child: const Text('Submit'),
+                child: const Text('Отправить'),
               ),
             ],
           ),

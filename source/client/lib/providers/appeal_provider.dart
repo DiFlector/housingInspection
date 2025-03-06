@@ -16,7 +16,7 @@ class AppealProvider with ChangeNotifier {
     try {
       _appeals = await _apiService.getAppeals();
     } catch (e) {
-      print('Error fetching appeals: $e');
+      print('Ошибка при получении обращений: $e');
       //  Обработка ошибки.  Например:
       if (e.toString() == "Authentication required") {
         //  Перенаправляем на экран входа.  Для этого нужно передать context.

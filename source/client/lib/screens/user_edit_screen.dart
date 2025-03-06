@@ -88,7 +88,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
         Navigator.of(context).pop();
       } catch (e) {
         setState(() {
-          _error = 'Error saving user: $e';
+          _error = 'Ошибка при сохранении пользователя: $e';
         });
       } finally {
         setState(() {
@@ -103,7 +103,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
     final currentRole = Provider.of<AuthProvider>(context, listen: false).role;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.user == null ? 'Create User' : 'Edit User'),
+        title: Text(widget.user == null ? 'Создать пользователя' : 'Редактирование пользователя'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -113,24 +113,24 @@ class _UserEditScreenState extends State<UserEditScreen> {
             children: [
               TextFormField(
                 controller: _usernameController,
-                decoration: const InputDecoration(labelText: 'Username'),
+                decoration: const InputDecoration(labelText: 'Имя пользователя'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a username';
+                    return 'Пожалуйста, введите имя пользователя';
                   }
                   return null;
                 },
               ),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: const InputDecoration(labelText: 'Почта'),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter an email address';
+                    return 'Пожалуйста, введите адрес почты';
                   }
                   if (!value.contains('@')) {
-                    return 'Please enter a valid email address';
+                    return 'Пожалуйста, введите правильный адрес почты';
                   }
                   return null;
                 },
@@ -138,19 +138,19 @@ class _UserEditScreenState extends State<UserEditScreen> {
               if (widget.user == null) ...[
                 TextFormField(
                   controller: _passwordController,
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: const InputDecoration(labelText: 'Пароль'),
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
+                      return 'Пожалуйста, введите пароль';
                     }
                     if (value.length < 8) {
-                      return 'Password must be at least 8 characters long';
+                      return 'Пароль должен быть не менее 8 символов';
                     }  if (!value.contains(RegExp(r'[0-9]'))) {
-                      return 'Password must contain at least one digit';
+                      return 'Пароль должен содержать не менее 1 цифры';
                     }
                     if (!value.contains(RegExp(r'[A-Z]'))) {
-                      return 'Password must contain at least one uppercase letter';
+                      return 'Пароль должен содержать не менее 1 заглавной буквы';
                     }
                     return null;
                   },
@@ -158,14 +158,14 @@ class _UserEditScreenState extends State<UserEditScreen> {
                 TextFormField(
                   controller: _passwordConfirmController,
                   decoration:
-                  const InputDecoration(labelText: 'Confirm Password'),
+                  const InputDecoration(labelText: 'Подтвердите пароль'),
                   obscureText: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please confirm the password';
+                      return 'Пожалуйста, подтвердите пароль';
                     }
                     if (value != _passwordController.text) {
-                      return 'Passwords do not match';
+                      return 'Пароли не совпадают';
                     }
                     return null;
                   },
@@ -173,15 +173,15 @@ class _UserEditScreenState extends State<UserEditScreen> {
               ],
               TextFormField(
                 controller: _fullNameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
+                decoration: const InputDecoration(labelText: 'Полное имя'),
               ),
               if (currentRole == "inspector")
                 DropdownButtonFormField<String>( //Роль
-                  decoration: const InputDecoration(labelText: 'Role'),
+                  decoration: const InputDecoration(labelText: 'Роль'),
                   value: _role,
                   items: const [
-                    DropdownMenuItem(value: 'citizen', child: Text('Citizen')),
-                    DropdownMenuItem(value: 'inspector', child: Text('Inspector')),
+                    DropdownMenuItem(value: 'citizen', child: Text('Гражданин')),
+                    DropdownMenuItem(value: 'inspector', child: Text('Инспектор')),
                   ],
                   onChanged: (value) {
                     setState(() {
@@ -190,7 +190,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
                   },
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please select a role';
+                      return 'Пожалуйста, выберите роль';
                     }
                     return null;
                   },
@@ -200,7 +200,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
                 onPressed: _submit,
-                child: const Text('Save'),
+                child: const Text('Сохранить'),
               ),
               if (_error != null)
                 Padding(

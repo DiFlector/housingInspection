@@ -9,20 +9,20 @@ class StatusProvider with ChangeNotifier {
   List<AppealStatus> get statuses => _statuses;
 
   Future<void> fetchStatuses() async {
-    print("Fetching statuses..."); // Добавляем
+    print("Получение статусов..."); // Добавляем
     try {
       _statuses = await _apiService.getAppealStatuses();
-      print("Statues fetched: ${_statuses.length}");
+      print("Статусов получено: ${_statuses.length}");
       notifyListeners();
     }
     catch (e){
-      print("Error fetching statuses: $e");
+      print("Ошибка при получении статусов: $e");
     }
   }
   String getStatusName(int id) {
     print("id = $id");
     final status = _statuses.firstWhere((element) => element.id == id,
-        orElse: () => AppealStatus(id: 0, name: 'Unknown')); //Обработка на случай если статус не найден.
+        orElse: () => AppealStatus(id: 0, name: 'Неизвестно')); //Обработка на случай если статус не найден.
     print(status);
     return status.name;
   }
