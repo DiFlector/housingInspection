@@ -22,8 +22,10 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacementNamed('/');
       });
-    } else {
-      Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
+    } {
+      WidgetsBinding.instance.addPostFrameCallback((_) { //  ОТКЛАДЫВАЕМ
+        Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
+      });
     }
   }
   Future<void> _showErrorDialog(BuildContext context, String message) async {
