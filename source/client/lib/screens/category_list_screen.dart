@@ -1,32 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:housing_inspection_client/models/user.dart';
-import 'package:housing_inspection_client/providers/user_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:housing_inspection_client/models/appeal_category.dart';
 import 'package:housing_inspection_client/providers/auth_provider.dart';
-import 'package:housing_inspection_client/screens/user_edit_screen.dart';
+import 'package:housing_inspection_client/providers/category_provider.dart';
+import 'package:housing_inspection_client/screens/category_edit_screen.dart';
+import 'package:provider/provider.dart';
 import 'package:housing_inspection_client/models/api_exception.dart';
 
-class UserListScreen extends StatefulWidget {
-  const UserListScreen({super.key});
+class CategoryListScreen extends StatefulWidget {
+  const CategoryListScreen({super.key});
 
   @override
-  _UserListScreenState createState() => _UserListScreenState();
+  _CategoryListScreenState createState() => _CategoryListScreenState();
 }
 
-class _UserListScreenState extends State<UserListScreen> {
+class _CategoryListScreenState extends State<CategoryListScreen> {
   @override
   void initState() {
     super.initState();
-    final role = Provider.of<AuthProvider>(context, listen: false).role;
-    if (role != 'inspector') {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.role != 'inspector') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacementNamed('/');
       });
     } else {
-      Provider.of<UserProvider>(context, listen: false).fetchUsers();
+      Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
     }
   }
-
   Future<void> _showErrorDialog(BuildContext context, String message) async {
     return showDialog<void>(
       context: context,
@@ -37,7 +36,7 @@ class _UserListScreenState extends State<UserListScreen> {
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                Text("Невозможно удалить пользователя с незакрытыми обращениями."),
+                Text("Невозможно удалить категорию: она используется в обращениях."),
               ],
             ),
           ),
@@ -60,25 +59,23 @@ class _UserListScreenState extends State<UserListScreen> {
     if (role != 'inspector') {
       return const SizedBox.shrink();
     }
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Пользователи'), //  Перевод
+        title: const Text('Категории'), //  Перевод
       ),
-      body: Consumer<UserProvider>(
-        builder: (context, userProvider, child) {
-          if (userProvider.isLoading) {
+      body: Consumer<CategoryProvider>(
+        builder: (context, categoryProvider, child) {
+          if (categoryProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
-          } else if (userProvider.users.isEmpty) {
-            return const Center(child: Text('Пользователи не найдены.')); //  Перевод
+          } else if (categoryProvider.categories.isEmpty) {
+            return const Center(child: Text('Категории не найдены.')); //  Перевод
           } else {
             return ListView.builder(
-              itemCount: userProvider.users.length,
+              itemCount: categoryProvider.categories.length,
               itemBuilder: (context, index) {
-                final user = userProvider.users[index];
+                final category = categoryProvider.categories[index];
                 return ListTile(
-                  title: Text(user.username),
-                  subtitle: Text(user.email),
+                  title: Text(category.name),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -88,7 +85,8 @@ class _UserListScreenState extends State<UserListScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => UserEditScreen(user: user),
+                              builder: (context) =>
+                                  CategoryEditScreen(category: category),
                             ),
                           );
                         },
@@ -103,7 +101,7 @@ class _UserListScreenState extends State<UserListScreen> {
                             builder: (BuildContext context) {
                               return AlertDialog(
                                 title: const Text('Подтверждение удаления'), //  Перевод
-                                content: Text('Вы уверены, что хотите удалить пользователя "${user.username}"?'),  //  Перевод и подстановка имени
+                                content: Text('Вы уверены, что хотите удалить категорию "${category.name}"?'),  //  Перевод + имя
                                 actions: <Widget>[
                                   TextButton(
                                     child: const Text('Отмена'), //  Перевод
@@ -116,7 +114,8 @@ class _UserListScreenState extends State<UserListScreen> {
                                     onPressed: () async {
                                       Navigator.of(context).pop();
                                       try {
-                                        await Provider.of<UserProvider>(context, listen: false).deleteUser(user.id);
+                                        await Provider.of<CategoryProvider>(context, listen: false)
+                                            .deleteCategory(category.id);
                                       } on ApiException catch (e) {
                                         _showErrorDialog(context, e.message);
                                       }
@@ -141,12 +140,12 @@ class _UserListScreenState extends State<UserListScreen> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const UserEditScreen(user: null),
+              builder: (context) => const CategoryEditScreen(category: null),
             ),
           );
         },
         child: const Icon(Icons.add),
-        tooltip: 'Добавить пользователя', //  Перевод
+        tooltip: 'Добавить категорию', //  Перевод
       ),
     );
   }

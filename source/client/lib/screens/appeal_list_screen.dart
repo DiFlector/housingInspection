@@ -6,6 +6,7 @@ import 'package:housing_inspection_client/screens/appeal_create_screen.dart';
 import 'package:housing_inspection_client/providers/status_provider.dart';
 import 'package:housing_inspection_client/providers/auth_provider.dart';
 import 'package:housing_inspection_client/models/appeal.dart';
+import 'package:housing_inspection_client/providers/category_provider.dart';
 
 class AppealListScreen extends StatefulWidget {
   const AppealListScreen({super.key});
@@ -15,34 +16,10 @@ class AppealListScreen extends StatefulWidget {
 }
 
 class _AppealListScreenState extends State<AppealListScreen> {
-  bool _isLoading = false;
-  String? _error;
-
   @override
   void initState() {
     super.initState();
-    _loadAppeals();
-  }
-
-  Future<void> _loadAppeals() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      await Provider.of<AppealProvider>(context, listen: false)
-          .fetchAppeals()
-          .timeout(const Duration(seconds: 5));
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to load appeals: $e';
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    Provider.of<AppealProvider>(context, listen: false).fetchAppeals();
   }
 
   @override
@@ -51,13 +28,29 @@ class _AppealListScreenState extends State<AppealListScreen> {
       appBar: AppBar(
         title: const Text('Обращения'),
         actions: [
-          //  ВРЕМЕННАЯ кнопка для перехода к списку пользователей
+          // ВРЕМЕННЫЕ кнопки для перехода к спискам пользователей, категорий и статусов
           if (Provider.of<AuthProvider>(context, listen: false).role ==
               'inspector')
             IconButton(
               icon: const Icon(Icons.people),
               onPressed: () {
                 Navigator.pushNamed(context, '/users');
+              },
+            ),
+          if (Provider.of<AuthProvider>(context, listen: false).role ==
+              'inspector')
+            IconButton(
+              icon: const Icon(Icons.category),
+              onPressed: () {
+                Navigator.pushNamed(context, '/categories');
+              },
+            ),
+          if (Provider.of<AuthProvider>(context, listen: false).role ==
+              'inspector')
+            IconButton(
+              icon: const Icon(Icons.filter_list), //  Иконка для статусов (пример)
+              onPressed: () {
+                Navigator.pushNamed(context, '/statuses');
               },
             ),
           IconButton(
@@ -71,36 +64,47 @@ class _AppealListScreenState extends State<AppealListScreen> {
       ),
       body: Consumer<AppealProvider>(
         builder: (context, appealProvider, child) {
-          //  Получаем роль текущего пользователя
           final role = Provider.of<AuthProvider>(context, listen: false).role;
 
-          //  Фильтруем список обращений в зависимости от роли
           List<Appeal> displayedAppeals = [];
           if (role == 'inspector') {
-            displayedAppeals = appealProvider.appeals; //  Инспекторы видят все
+            displayedAppeals = appealProvider.appeals;
           } else {
-            //  Граждане видят только свои (фильтруем по user_id)
-
-            final currentUserId = Provider.of<AuthProvider>(context, listen: false).userId; //  Получаем ID пользователя
-            displayedAppeals = appealProvider.appeals.where((appeal) => appeal.userId == currentUserId).toList();
+            final currentUserId =
+                Provider.of<AuthProvider>(context, listen: false).userId;
+            displayedAppeals = appealProvider.appeals
+                .where((appeal) => appeal.userId == currentUserId)
+                .toList();
           }
 
           return RefreshIndicator(
-            onRefresh: _loadAppeals,
-            child:_isLoading
+            onRefresh: () async {
+              await Provider.of<AppealProvider>(context, listen: false)
+                  .fetchAppeals();
+            },
+            child: appealProvider.isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                ? Center(child: Text(_error!))
                 : displayedAppeals.isEmpty
                 ? const Center(child: Text('Нет существующих обращений'))
                 : ListView.builder(
               itemCount: displayedAppeals.length,
               itemBuilder: (context, index) {
                 final appeal = displayedAppeals[index];
+                final categoryName =
+                Provider.of<CategoryProvider>(context, listen: false)
+                    .getCategoryName(appeal.categoryId);
+                final statusName =
+                Provider.of<StatusProvider>(context, listen: false)
+                    .getStatusName(appeal.statusId);
                 return ListTile(
                   title: Text(appeal.address),
-                  subtitle: Text(
-                      'Статус: ${Provider.of<StatusProvider>(context, listen: false).getStatusName(appeal.statusId)}'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Категория: $categoryName'),
+                      Text('Статус: $statusName'),
+                    ],
+                  ),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -119,9 +123,11 @@ class _AppealListScreenState extends State<AppealListScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const AppealCreateScreen()));
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AppealCreateScreen(),
+            ),
+          );
         },
         child: const Icon(Icons.add),
       ),

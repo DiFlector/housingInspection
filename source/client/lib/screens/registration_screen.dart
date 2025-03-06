@@ -39,16 +39,22 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         );
 
         if (result == null) {
-          //  ИСПРАВЛЕННАЯ НАВИГАЦИЯ:
-          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false); //  ИЗМЕНЕНО
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         } else {
           setState(() {
-            _error = result;
+            //  ПЕРЕВОДИМ СООБЩЕНИЯ ОБ ОШИБКАХ:
+            if (result == "Username or email already registered") {
+              _error = "Имя пользователя или email уже зарегистрированы.";
+            } else if (result == "Passwords do not match") {
+              _error = "Пароли не совпадают.";
+            } else {
+              _error = result; //  Если ошибка другая, показываем как есть
+            }
           });
         }
       } catch (e) {
         setState(() {
-          _error = 'Ошибка при регистрации: $e';
+          _error = 'Registration failed: $e'; //  Для других ошибок
         });
       } finally {
         setState(() {
@@ -57,6 +63,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -84,14 +91,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Почта'),
+                decoration: const InputDecoration(labelText: 'Email'),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Пожалуйста, введите адрес почты';
+                    return 'Пожалуйста, введите email';
                   }
                   if (!value.contains('@')) {
-                    return 'Пожалуйста, введите верный адрес почты';
+                    return 'Пожалуйста, введите верный email';
                   }
                   return null;
                 },

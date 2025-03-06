@@ -29,24 +29,25 @@ class UserProvider with ChangeNotifier {
   Future<void> addUser(User newUser, String password) async {
     try {
       final createdUser = await _apiService.createUser(
-          newUser.username,
-          newUser.email,
-          password,
-          newUser.fullName,
-          newUser.role
+        newUser.username,
+        newUser.email,
+        password,
+        newUser.fullName,
+        newUser.role,
       );
       _users.add(createdUser);
       notifyListeners();
-    } on ApiException catch (e){
-      print(e); //  TODO:  Обработать ошибку (показать сообщение)
+      //  Добавляем обработку ApiException
+    } on ApiException catch (e) {
+      rethrow; //Перебрасываем ошибку, чтобы обработать в виджете
     }
     catch (e){
-      print('Ошибка при добавлении пользователя: $e');
+      print('Error add user: $e');
+      rethrow; //  Перебрасываем ошибку, чтобы ее поймал виджет.
     }
   }
 
-  Future<User?> updateUser(User updatedUser) async { //Изменили
-    print("UserProvider.updateUser called with: ${updatedUser.toJson()}");
+  Future<void> updateUser(User updatedUser) async {
     try{
       final newUser = await _apiService.updateUser(updatedUser);
       final index = _users.indexWhere((user) => user.id == newUser.id);
@@ -54,27 +55,30 @@ class UserProvider with ChangeNotifier {
         _users[index] = newUser;
         notifyListeners();
       }
-      return newUser; //Возвращаем
-    } on ApiException catch (e){
-      print(e);
-      return null;
+    } on ApiException catch (e){ //  Добавили обработку ошибок ApiException
+      rethrow; //Перебрасываем ошибку, чтобы обработать в виджете
     }
     catch (e){
-      print('Ошибка при изменении пользователя: $e');
-      return null;
+      print('Error update user: $e');
+      rethrow; //  Перебрасываем ошибку, чтобы ее поймал виджет.
     }
   }
 
   Future<void> deleteUser(int userId) async {
-    try{
+    try {
       await _apiService.deleteUser(userId);
-      _users.removeWhere((user) => user.id == userId); //Удаляем из списка
+      _users.removeWhere((user) => user.id == userId);
       notifyListeners();
-    } on ApiException catch (e){
-      print(e);
-    }
-    catch (e){
-      print('Ошибка при удалении пользователя: $e');
+    } on ApiException catch (e) {
+      if(e.message == 'Failed to delete user: 400, {"detail":"Cannot delete user: it\'s in use"}'){
+        throw ApiException("Невозможно удалить пользователя с незакрытыми обращениями."); //  Конкретное сообщение
+      }
+      else{
+        rethrow; //  Перебрасываем другие ошибки
+      }
+    } catch (e) {
+      print('Error delete user: $e');
+      rethrow; //  Перебрасываем другие ошибки
     }
   }
 }

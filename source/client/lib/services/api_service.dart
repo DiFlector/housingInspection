@@ -216,6 +216,133 @@ class ApiService {
     }
   }
 
+  Future<AppealStatus> createStatus(String name) async {
+    final token = await _getToken();
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    headers['Content-Type'] = 'application/json'; //  Указываем JSON
+    final response = await http.post(
+      Uri.parse('$baseUrl/appeal_statuses/'), //  URL для создания статуса
+      headers: headers,
+      body: jsonEncode({'name': name}), //  Передаём только имя статуса
+    );
+
+    if (response.statusCode == 200) {
+      return AppealStatus.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+    } else {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage =
+      errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create status';
+      throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
+  Future<AppealStatus> updateStatus(AppealStatus updatedStatus) async {
+    final token = await _getToken();
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    headers['Content-Type'] = 'application/json';
+    final response = await http.put(
+      Uri.parse('$baseUrl/appeal_statuses/${updatedStatus.id}'), //  URL для обновления статуса
+      headers: headers,
+      body: jsonEncode({'name': updatedStatus.name}), //  Передаём только имя статуса
+    );
+
+    if (response.statusCode == 200) {
+      return AppealStatus.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+    } else {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage =
+      errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update status';
+      throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
+  Future<void> deleteStatus(int statusId) async {
+    final token = await _getToken();
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    final response = await http.delete(
+      Uri.parse('$baseUrl/appeal_statuses/$statusId'), //  URL для удаления статуса
+      headers: headers,
+    );
+
+    if (response.statusCode != 200) {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage =
+      errorData.containsKey('detail') ? errorData['detail'] : 'Failed to delete status';
+      throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
+  Future<AppealCategory> createCategory(String name) async {
+    final token = await _getToken();
+    final Map<String,String> headers = {};
+    if(token != null){
+      headers.addAll({'Authorization': 'Bearer $token', 'Content-Type': 'application/json'});
+    }
+    final response = await http.post(
+      Uri.parse('$baseUrl/appeal_categories/'),
+      headers: headers,
+      body: jsonEncode({'name': name}), //  Отправляем только name
+    );
+
+    if (response.statusCode == 200) {
+      return AppealCategory.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+    } else {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create category';
+      throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
+  //  Пример для updateCategory:
+  Future<AppealCategory> updateCategory(AppealCategory updatedCategory) async {
+    final token = await _getToken();
+    final Map<String,String> headers = {};
+    if(token != null){
+      headers.addAll({'Authorization': 'Bearer $token', 'Content-Type': 'application/json'});
+    }
+    final response = await http.put(
+      Uri.parse('$baseUrl/appeal_categories/${updatedCategory.id}'),
+      headers: headers,
+      body: jsonEncode({
+        'name': updatedCategory.name
+      }),
+    );
+    if (response.statusCode == 200) {
+      return AppealCategory.fromJson(jsonDecode(utf8.decode(response.bodyBytes))); //  Декодируем
+    } else {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes)); // Декодируем
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update category'; //  Сообщение об ошибке
+      throw ApiException(errorMessage, response.statusCode); //  Выбрасываем
+    }
+  }
+  //  Пример для deleteCategory:
+  Future<void> deleteCategory(int categoryId) async {
+    final token = await _getToken();
+    final Map<String,String> headers = {};
+    if(token != null){
+      headers.addAll({'Authorization': 'Bearer $token'});
+    }
+    final response = await http.delete(
+      Uri.parse('$baseUrl/appeal_categories/$categoryId'),
+      headers: headers,
+    );
+
+    if (response.statusCode != 200) {
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to delete category';
+      throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
 // --- Users ---
   Future<User> getUser(int id) async {
     final token = await _getToken();

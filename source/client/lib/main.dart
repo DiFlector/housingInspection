@@ -9,6 +9,10 @@ import 'package:housing_inspection_client/providers/category_provider.dart';
 import 'package:housing_inspection_client/providers/status_provider.dart';
 import 'package:housing_inspection_client/providers/auth_provider.dart';
 import 'package:housing_inspection_client/providers/user_provider.dart';
+import 'package:housing_inspection_client/screens/category_edit_screen.dart';
+import 'package:housing_inspection_client/screens/category_list_screen.dart';
+import 'package:housing_inspection_client/screens/status_edit_screen.dart';
+import 'package:housing_inspection_client/screens/status_list_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +63,10 @@ class MyApp extends StatelessWidget {
         '/auth': (context) => const AuthScreen(),
         '/register': (context) => const RegistrationScreen(),
         '/users': (context) => const UserListScreen(),
+        '/categories': (context) => const CategoryListScreen(),
+        '/categories/edit': (context) => const CategoryEditScreen(category: null),
+        '/statuses': (context) => const StatusListScreen(),
+        '/statuses/edit': (context) => const StatusEditScreen(status: null),
       },
     );
   }

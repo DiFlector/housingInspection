@@ -1,43 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:housing_inspection_client/models/user.dart';
-import 'package:housing_inspection_client/providers/user_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:housing_inspection_client/models/appeal_status.dart';
 import 'package:housing_inspection_client/providers/auth_provider.dart';
-import 'package:housing_inspection_client/screens/user_edit_screen.dart';
+import 'package:housing_inspection_client/providers/status_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:housing_inspection_client/models/api_exception.dart';
 
-class UserListScreen extends StatefulWidget {
-  const UserListScreen({super.key});
+import 'status_edit_screen.dart';
+class StatusListScreen extends StatefulWidget {
+  const StatusListScreen({super.key});
 
   @override
-  _UserListScreenState createState() => _UserListScreenState();
+  _StatusListScreenState createState() => _StatusListScreenState();
 }
 
-class _UserListScreenState extends State<UserListScreen> {
+class _StatusListScreenState extends State<StatusListScreen> {
   @override
   void initState() {
     super.initState();
-    final role = Provider.of<AuthProvider>(context, listen: false).role;
-    if (role != 'inspector') {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.role != 'inspector') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacementNamed('/');
       });
     } else {
-      Provider.of<UserProvider>(context, listen: false).fetchUsers();
+      Provider.of<StatusProvider>(context, listen: false).fetchStatuses();
     }
   }
 
   Future<void> _showErrorDialog(BuildContext context, String message) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, //  Нельзя закрыть диалог, нажав мимо
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Ошибка'),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                Text("Невозможно удалить пользователя с незакрытыми обращениями."),
+                Text("Невозможно удалить статус: он используется в обращениях."),
               ],
             ),
           ),
@@ -45,7 +45,7 @@ class _UserListScreenState extends State<UserListScreen> {
             TextButton(
               child: const Text('Ок'),
               onPressed: () {
-                Navigator.of(context).pop(); //  Закрываем диалог
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -60,39 +60,36 @@ class _UserListScreenState extends State<UserListScreen> {
     if (role != 'inspector') {
       return const SizedBox.shrink();
     }
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Пользователи'), //  Перевод
+        title: const Text('Статусы'), //  Перевод
       ),
-      body: Consumer<UserProvider>(
-        builder: (context, userProvider, child) {
-          if (userProvider.isLoading) {
+      body: Consumer<StatusProvider>(
+        builder: (context, statusProvider, child) {
+          if (statusProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
-          } else if (userProvider.users.isEmpty) {
-            return const Center(child: Text('Пользователи не найдены.')); //  Перевод
+          } else if (statusProvider.statuses.isEmpty) {
+            return const Center(child: Text('Статусы не найдены.')); //  Перевод
           } else {
             return ListView.builder(
-              itemCount: userProvider.users.length,
+              itemCount: statusProvider.statuses.length,
               itemBuilder: (context, index) {
-                final user = userProvider.users[index];
+                final status = statusProvider.statuses[index];
                 return ListTile(
-                  title: Text(user.username),
-                  subtitle: Text(user.email),
+                  title: Text(status.name),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
                         icon: const Icon(Icons.edit),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => UserEditScreen(user: user),
-                            ),
+                        tooltip: 'Редактировать', //  Перевод
+                        onPressed: (){
+                          Navigator.push(context,
+                              MaterialPageRoute(builder:
+                                  (context) => StatusEditScreen(status: status)
+                              )
                           );
                         },
-                        tooltip: 'Редактировать', //  Перевод
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete),
@@ -103,7 +100,7 @@ class _UserListScreenState extends State<UserListScreen> {
                             builder: (BuildContext context) {
                               return AlertDialog(
                                 title: const Text('Подтверждение удаления'), //  Перевод
-                                content: Text('Вы уверены, что хотите удалить пользователя "${user.username}"?'),  //  Перевод и подстановка имени
+                                content: Text('Вы уверены, что хотите удалить статус "${status.name}"?'),  //  Перевод + имя
                                 actions: <Widget>[
                                   TextButton(
                                     child: const Text('Отмена'), //  Перевод
@@ -112,15 +109,15 @@ class _UserListScreenState extends State<UserListScreen> {
                                     },
                                   ),
                                   TextButton(
-                                    child: const Text('Удалить'), //  Перевод
-                                    onPressed: () async {
-                                      Navigator.of(context).pop();
-                                      try {
-                                        await Provider.of<UserProvider>(context, listen: false).deleteUser(user.id);
-                                      } on ApiException catch (e) {
-                                        _showErrorDialog(context, e.message);
+                                      child: const Text('Удалить'), //  Перевод
+                                      onPressed: () async {
+                                        Navigator.of(context).pop();
+                                        try {
+                                          await Provider.of<StatusProvider>(context, listen: false).deleteStatus(status.id);
+                                        } on ApiException catch (e) {
+                                          _showErrorDialog(context, e.message);
+                                        }
                                       }
-                                    },
                                   ),
                                 ],
                               );
@@ -138,15 +135,14 @@ class _UserListScreenState extends State<UserListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const UserEditScreen(user: null),
-            ),
+          Navigator.push(context,
+              MaterialPageRoute(builder:
+                  (context) => const StatusEditScreen(status: null)
+              )
           );
         },
         child: const Icon(Icons.add),
-        tooltip: 'Добавить пользователя', //  Перевод
+        tooltip: 'Добавить статус', //  Перевод
       ),
     );
   }

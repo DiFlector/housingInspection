@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:housing_inspection_client/models/user.dart';
 import 'package:housing_inspection_client/providers/user_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:housing_inspection_client/providers/auth_provider.dart'; //Импортируем
+import 'package:housing_inspection_client/models/api_exception.dart';
 
 class UserEditScreen extends StatefulWidget {
   final User? user;
@@ -21,7 +21,8 @@ class _UserEditScreenState extends State<UserEditScreen> {
   final _passwordConfirmController = TextEditingController();
   final _fullNameController = TextEditingController();
   String? _role;
-  //bool _isActive = true;  //  УДАЛЯЕМ
+  bool _isActive = true;
+
   bool _isLoading = false;
   String? _error;
 
@@ -33,7 +34,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
       _emailController.text = widget.user!.email;
       _fullNameController.text = widget.user!.fullName ?? '';
       _role = widget.user!.role;
-      //_isActive = widget.user!.is_active;  //  УДАЛЯЕМ
+      _isActive = widget.user!.isActive;
     }
   }
 
@@ -65,7 +66,7 @@ class _UserEditScreenState extends State<UserEditScreen> {
             email: _emailController.text,
             fullName: _fullNameController.text,
             role: _role!,
-            isActive: true, //  ВСЕГДА true при создании
+            isActive: _isActive,
             createdAt: DateTime.now(),
           );
           await Provider.of<UserProvider>(context, listen: false)
@@ -78,17 +79,27 @@ class _UserEditScreenState extends State<UserEditScreen> {
             email: _emailController.text,
             fullName: _fullNameController.text,
             role: _role!,
-            isActive: widget.user!.isActive,  //  Берем из widget.user
+            isActive: _isActive,
             createdAt: widget.user!.createdAt,
           );
-          await Provider.of<UserProvider>(context, listen: false)
-              .updateUser(updatedUser);
+          await Provider.of<UserProvider>(context, listen: false).updateUser(updatedUser);
         }
 
         Navigator.of(context).pop();
+
+      } on ApiException catch (e) { // Ловим ApiException
+        setState(() {
+          // ПЕРЕВОД СООБЩЕНИЙ ОБ ОШИБКАХ:
+          if (e.message == "Username or email already registered") {
+            _error = "Имя пользователя или email уже зарегистрированы.";
+          } else {
+            _error = e.message;  //  Другие ошибки
+          }
+        });
+
       } catch (e) {
         setState(() {
-          _error = 'Ошибка при сохранении пользователя: $e';
+          _error = 'Error saving user: $e';
         });
       } finally {
         setState(() {
@@ -100,10 +111,9 @@ class _UserEditScreenState extends State<UserEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currentRole = Provider.of<AuthProvider>(context, listen: false).role;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.user == null ? 'Создать пользователя' : 'Редактирование пользователя'),
+        title: Text(widget.user == null ? 'Создать пользователя' : 'Редактировать пользователя'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -123,14 +133,14 @@ class _UserEditScreenState extends State<UserEditScreen> {
               ),
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Почта'),
+                decoration: const InputDecoration(labelText: 'Email'),
                 keyboardType: TextInputType.emailAddress,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Пожалуйста, введите адрес почты';
+                    return 'Пожалуйста, введите email';
                   }
                   if (!value.contains('@')) {
-                    return 'Пожалуйста, введите правильный адрес почты';
+                    return 'Пожалуйста, введите корректный email';
                   }
                   return null;
                 },
@@ -146,11 +156,6 @@ class _UserEditScreenState extends State<UserEditScreen> {
                     }
                     if (value.length < 8) {
                       return 'Пароль должен быть не менее 8 символов';
-                    }  if (!value.contains(RegExp(r'[0-9]'))) {
-                      return 'Пароль должен содержать не менее 1 цифры';
-                    }
-                    if (!value.contains(RegExp(r'[A-Z]'))) {
-                      return 'Пароль должен содержать не менее 1 заглавной буквы';
                     }
                     return null;
                   },
@@ -175,29 +180,37 @@ class _UserEditScreenState extends State<UserEditScreen> {
                 controller: _fullNameController,
                 decoration: const InputDecoration(labelText: 'Полное имя'),
               ),
-              if (currentRole == "inspector")
-                DropdownButtonFormField<String>( //Роль
-                  decoration: const InputDecoration(labelText: 'Роль'),
-                  value: _role,
-                  items: const [
-                    DropdownMenuItem(value: 'citizen', child: Text('Гражданин')),
-                    DropdownMenuItem(value: 'inspector', child: Text('Инспектор')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _role = value;
-                    });
-                  },
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Пожалуйста, выберите роль';
-                    }
-                    return null;
-                  },
-                ),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: 'Роль'),
+                value: _role,
+                items: const [
+                  DropdownMenuItem(value: 'citizen', child: Text('Гражданин')),
+                  DropdownMenuItem(value: 'inspector', child: Text('Инспектор')),
+                ],
+                onChanged: (value) {
+                  setState(() {
+                    _role = value;
+                  });
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Пожалуйста, выберите роль';
+                  }
+                  return null;
+                },
+              ),
+              SwitchListTile(
+                title: const Text('Активен'),
+                value: _isActive,
+                onChanged: (value) {
+                  setState(() {
+                    _isActive = value;
+                  });
+                },
+              ),
               const SizedBox(height: 20),
               _isLoading
-                  ? const CircularProgressIndicator()
+                  ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                 onPressed: _submit,
                 child: const Text('Сохранить'),
