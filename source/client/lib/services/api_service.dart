@@ -80,6 +80,15 @@ class ApiService {
     }
   }
 
+  Future<bool> checkToken() async{
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null || JwtDecoder.isExpired(token)){
+      return false;
+    }
+    return true;
+  }
+
   Future<Appeal> getAppeal(int id) async {
     final token = await _getToken();
 
@@ -97,9 +106,10 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+      final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return Appeal.fromJson(data);
     } else {
-      throw ApiException('Failed to load appeal', response.statusCode);
+      throw ApiException('Failed to load appeal: ${response.statusCode}');
     }
   }
 

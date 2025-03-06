@@ -1,3 +1,5 @@
+import 'package:housing_inspection_client/models/user.dart';
+
 class Appeal {
   final int id;
   final int userId;
@@ -8,6 +10,7 @@ class Appeal {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? filePaths;
+  final User? user;
 
   Appeal({
     required this.id,
@@ -19,6 +22,7 @@ class Appeal {
     required this.createdAt,
     required this.updatedAt,
     this.filePaths,
+    this.user,
   });
 
   factory Appeal.fromJson(Map<String, dynamic> json) {
@@ -32,6 +36,7 @@ class Appeal {
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
       filePaths: json['file_paths'],
+      user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
 // Метод toJson() нужен для отправки данных на сервер.
