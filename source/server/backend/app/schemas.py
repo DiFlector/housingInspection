@@ -57,6 +57,7 @@ class Appeal(AppealBase):
     created_at: datetime
     updated_at: datetime
     file_paths: Optional[str] = None  # Добавляем в Appeal
+    user: User  # Добавляем вложенную схему User
     class Config:
         from_attributes = True
 
