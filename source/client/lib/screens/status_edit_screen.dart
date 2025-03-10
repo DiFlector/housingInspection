@@ -73,7 +73,7 @@ class _StatusEditScreenState extends State<StatusEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.status == null ? 'Создать статус' : 'Редактировать статус'), //  Перевод
+        title: Text(widget.status == null ? 'Создать статус' : 'Редактировать статус'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -83,10 +83,10 @@ class _StatusEditScreenState extends State<StatusEditScreen> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Название статуса'), //  Перевод
+                decoration: const InputDecoration(labelText: 'Название статуса'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Пожалуйста, введите название статуса'; //  Перевод
+                    return 'Пожалуйста, введите название статуса';
                   }
                   return null;
                 },
@@ -96,7 +96,7 @@ class _StatusEditScreenState extends State<StatusEditScreen> {
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
                 onPressed: _submit,
-                child: const Text('Сохранить'), //  Перевод
+                child: const Text('Сохранить'),
               ),
               if (_error != null)
                 Padding(

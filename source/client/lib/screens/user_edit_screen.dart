@@ -59,7 +59,6 @@ class _UserEditScreenState extends State<UserEditScreen> {
 
       try {
         if (widget.user == null) {
-          // Создание нового пользователя
           final newUser = User(
             id: 0,
             username: _usernameController.text,
@@ -72,7 +71,6 @@ class _UserEditScreenState extends State<UserEditScreen> {
           await Provider.of<UserProvider>(context, listen: false)
               .addUser(newUser, _passwordController.text);
         } else {
-          // Редактирование существующего пользователя
           final updatedUser = User(
             id: widget.user!.id,
             username: _usernameController.text,
@@ -87,13 +85,12 @@ class _UserEditScreenState extends State<UserEditScreen> {
 
         Navigator.of(context).pop();
 
-      } on ApiException catch (e) { // Ловим ApiException
+      } on ApiException catch (e) {
         setState(() {
-          // ПЕРЕВОД СООБЩЕНИЙ ОБ ОШИБКАХ:
           if (e.message == "Username or email already registered") {
             _error = "Имя пользователя или email уже зарегистрированы.";
           } else {
-            _error = e.message;  //  Другие ошибки
+            _error = e.message;
           }
         });
 

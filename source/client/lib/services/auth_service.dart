@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class AuthService {
-  final String baseUrl = 'http://5.35.125.180:8000'; //  УБЕДИСЬ, ЧТО АДРЕС ПРАВИЛЬНЫЙ!
+  final String baseUrl = 'http://5.35.125.180:8000';
 
   Future<String?> login(String username, String password) async {
     final response = await http.post(
@@ -25,8 +25,8 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('auth_token', token);
       return token;
-    } else if (response.statusCode == 400 && response.body.contains("Inactive user")) {  //  Добавляем проверку
-      return "Inactive user"; //  Возвращаем сообщение
+    } else if (response.statusCode == 400 && response.body.contains("Inactive user")) {
+      return "Inactive user";
     }
     else {
       print('Login failed: ${response.statusCode}, ${response.body}');
@@ -66,19 +66,19 @@ class AuthService {
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
-      return null; //Все хорошо
+      return null;
 
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
       if (errorData.containsKey('detail')) {
         if (errorData['detail'] is String) {
-          return errorData['detail']; //  Строка
+          return errorData['detail'];
         } else if (errorData['detail'] is List) {
           final errorMessages = (errorData['detail'] as List).map((e) => e['msg'] as String).toList();
-          return errorMessages.join('\n'); //  Список
+          return errorMessages.join('\n');
         }
       }
-      return 'Registration failed: ${response.statusCode}'; //Общая ошибка
+      return 'Registration failed: ${response.statusCode}';
     }
   }
 }

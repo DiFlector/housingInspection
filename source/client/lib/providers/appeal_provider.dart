@@ -17,8 +17,8 @@ class AppealProvider with ChangeNotifier {
   String get sortBy => _sortBy;
   String get sortOrder => _sortOrder;
 
-  int? _statusId; // Оставляем
-  int? _categoryId; // Оставляем
+  int? _statusId;
+  int? _categoryId;
 
   int? get statusId => _statusId;
   int? get categoryId => _categoryId;
@@ -32,17 +32,6 @@ class AppealProvider with ChangeNotifier {
     _categoryId = categoryId;
     notifyListeners();
   }
-
-  //  УДАЛЯЕМ методы setStartDateFilter и setEndDateFilter
-  // void setStartDateFilter(DateTime? startDate) {
-  //   _startDate = startDate;
-  //   notifyListeners();
-  // }
-
-  // void setEndDateFilter(DateTime? endDate) {
-  //   _endDate = endDate;
-  //   notifyListeners();
-  // }
 
   void clearFilters() {
     _statusId = null;
@@ -67,8 +56,8 @@ class AppealProvider with ChangeNotifier {
       _appeals = await _apiService.getAppeals(
         sortBy: _sortBy,
         sortOrder: _sortOrder,
-        statusId: _statusId,       //  Передаём фильтры
-        categoryId: _categoryId,     //  Передаём фильтры
+        statusId: _statusId,
+        categoryId: _categoryId,
 
       );
     } on ApiException catch (e) {

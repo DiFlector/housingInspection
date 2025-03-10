@@ -65,7 +65,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
     } catch (e) {
       print('Ошибка загрузки категорий и статусов: $e');
       setState(() {
-        _error = 'Загрузка категорий и статусов не удалась: $e'; //  Показываем ошибку
+        _error = 'Загрузка категорий и статусов не удалась: $e';
       });
     }
   }
@@ -103,7 +103,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
         child: Form(
           key: _formKey,
           child:
-          _isLoading ? const Center(child: CircularProgressIndicator()) :  //  Индикатор загрузки
+          _isLoading ? const Center(child: CircularProgressIndicator()) :
           ListView(
             children: [
               TextFormField(
@@ -156,7 +156,7 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
                   child: _buildFilePreview(path),
                 )).toList(),
               ),
-              if (_error != null)  //  Отображение ошибки
+              if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Text(
@@ -171,15 +171,15 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
 
                     setState(() {
                       _isLoading = true;
-                      _error = null; // Сбрасываем ошибку
+                      _error = null;
                     });
 
                     try {
                       final newAppeal = Appeal(
-                        id: 0, //  Сервер сам назначит ID
-                        userId: 0, //  Будет подставлено сервером
+                        id: 0,
+                        userId: 0,
                         categoryId: _categoryId,
-                        statusId: 1, //  Новое обращение
+                        statusId: 1,
                         address: _address,
                         description: _description,
                         createdAt: DateTime.now(),
@@ -187,14 +187,14 @@ class _AppealCreateScreenState extends State<AppealCreateScreen> {
                       );
                       await Provider.of<AppealProvider>(context, listen: false)
                           .addAppeal(newAppeal, _filePaths);
-                      Navigator.of(context).pop(); //  Возвращаемся назад
+                      Navigator.of(context).pop();
                     } catch (e) {
                       setState(() {
-                        _error = 'Ошибка при создании обращения: $e'; //  Показываем ошибку
+                        _error = 'Ошибка при создании обращения: $e';
                       });
                     } finally {
                       setState(() {
-                        _isLoading = false; //  В любом случае выключаем индикатор
+                        _isLoading = false;
                       });
                     }
                   }

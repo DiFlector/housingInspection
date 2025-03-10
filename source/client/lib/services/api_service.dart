@@ -58,9 +58,6 @@ class ApiService {
       'sort_order': sortOrder,
       if (statusId != null) 'status_id': statusId.toString(),
       if (categoryId != null) 'category_id': categoryId.toString(),
-      //  УДАЛЯЕМ start_date и end_date:
-      // if (startDate != null) 'start_date': startDate.toIso8601String(),
-      // if (endDate != null) 'end_date': endDate.toIso8601String(),
     };
 
     final Uri uri = Uri.parse('$baseUrl/appeals/').replace(
@@ -251,11 +248,11 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    headers['Content-Type'] = 'application/json'; //  Указываем JSON
+    headers['Content-Type'] = 'application/json';
     final response = await http.post(
-      Uri.parse('$baseUrl/appeal_statuses/'), //  URL для создания статуса
+      Uri.parse('$baseUrl/appeal_statuses/'),
       headers: headers,
-      body: jsonEncode({'name': name}), //  Передаём только имя статуса
+      body: jsonEncode({'name': name}),
     );
 
     if (response.statusCode == 200) {
@@ -276,9 +273,9 @@ class ApiService {
     }
     headers['Content-Type'] = 'application/json';
     final response = await http.put(
-      Uri.parse('$baseUrl/appeal_statuses/${updatedStatus.id}'), //  URL для обновления статуса
+      Uri.parse('$baseUrl/appeal_statuses/${updatedStatus.id}'),
       headers: headers,
-      body: jsonEncode({'name': updatedStatus.name}), //  Передаём только имя статуса
+      body: jsonEncode({'name': updatedStatus.name}),
     );
 
     if (response.statusCode == 200) {
@@ -298,7 +295,7 @@ class ApiService {
       headers['Authorization'] = 'Bearer $token';
     }
     final response = await http.delete(
-      Uri.parse('$baseUrl/appeal_statuses/$statusId'), //  URL для удаления статуса
+      Uri.parse('$baseUrl/appeal_statuses/$statusId'),
       headers: headers,
     );
 
@@ -319,7 +316,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/appeal_categories/'),
       headers: headers,
-      body: jsonEncode({'name': name}), //  Отправляем только name
+      body: jsonEncode({'name': name}),
     );
 
     if (response.statusCode == 200) {
@@ -331,7 +328,6 @@ class ApiService {
     }
   }
 
-  //  Пример для updateCategory:
   Future<AppealCategory> updateCategory(AppealCategory updatedCategory) async {
     final token = await _getToken();
     final Map<String,String> headers = {};
@@ -346,14 +342,14 @@ class ApiService {
       }),
     );
     if (response.statusCode == 200) {
-      return AppealCategory.fromJson(jsonDecode(utf8.decode(response.bodyBytes))); //  Декодируем
+      return AppealCategory.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      final errorData = jsonDecode(utf8.decode(response.bodyBytes)); // Декодируем
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update category'; //  Сообщение об ошибке
-      throw ApiException(errorMessage, response.statusCode); //  Выбрасываем
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update category';
+      throw ApiException(errorMessage, response.statusCode);
     }
   }
-  //  Пример для deleteCategory:
+
   Future<void> deleteCategory(int categoryId) async {
     final token = await _getToken();
     final Map<String,String> headers = {};
@@ -419,7 +415,7 @@ class ApiService {
     final queryParameters = <String, String>{
       'sort_by': sortBy,
       'sort_order': sortOrder,
-      'is_active': active.toString(), //  Всегда передаем is_active
+      'is_active': active.toString(),
     };
     final response = await http.get(
       Uri.parse('$baseUrl/users/').replace(queryParameters: queryParameters),
@@ -434,7 +430,6 @@ class ApiService {
     }
   }
 
-  // getUsers убираем activeFilter
   Future<List<User>> getUsers({String sortBy = 'username', String sortOrder = 'asc'}) async {
     final token = await _getToken();
 
@@ -447,13 +442,13 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final queryParameters = <String, String>{ //  Добавили
+    final queryParameters = <String, String>{
       'sort_by': sortBy,
       'sort_order': sortOrder,
     };
 
     final response = await http.get(
-      Uri.parse('$baseUrl/users/').replace(queryParameters: queryParameters),  //  Добавили параметры
+      Uri.parse('$baseUrl/users/').replace(queryParameters: queryParameters),
       headers: headers,
     );
 
@@ -488,13 +483,13 @@ class ApiService {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
       if (errorData.containsKey('detail')) {
         if (errorData['detail'] is String) {
-          throw ApiException(errorData['detail'], response.statusCode); //  Строка
+          throw ApiException(errorData['detail'], response.statusCode);
         } else if (errorData['detail'] is List) {
           final errorMessages = (errorData['detail'] as List).map((e) => e['msg'] as String).toList();
-          throw ApiException(errorMessages.join('\n'), response.statusCode); //  Список
+          throw ApiException(errorMessages.join('\n'), response.statusCode);
         }
       }
-      throw ApiException('Registration failed', response.statusCode); //Общая ошибка
+      throw ApiException('Registration failed', response.statusCode);
     }
   }
 
@@ -544,14 +539,14 @@ class ApiService {
     if(token != null){
       headers.addAll({'Authorization': 'Bearer $token'});
     }
-    headers.addAll({'Content-Type': 'application/json'}); //Указываем
+    headers.addAll({'Content-Type': 'application/json'});
 
     print("updateUser called with: ${updatedUser.toJson()}");
 
     final response = await http.put(
         Uri.parse('$baseUrl/users/${updatedUser.id}'),
         headers: headers,
-        body: jsonEncode({ //Кодируем
+        body: jsonEncode({
           'username': updatedUser.username,
           'email': updatedUser.email,
           'full_name': updatedUser.fullName,
@@ -590,7 +585,7 @@ class ApiService {
     if (response.statusCode != 200) {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
       final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create user';
-      throw ApiException(errorMessage, response.statusCode); //  Неизвестная ошибка
+      throw ApiException(errorMessage, response.statusCode);
     }
   }
 }

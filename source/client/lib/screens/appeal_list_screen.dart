@@ -17,10 +17,8 @@ class AppealListScreen extends StatefulWidget {
 }
 
 class _AppealListScreenState extends State<AppealListScreen> {
-  int? _selectedStatusId; //Оставляем
-  int? _selectedCategoryId; //Оставляем
-  // DateTime? _selectedStartDate; //УДАЛЯЕМ
-  // DateTime? _selectedEndDate; //УДАЛЯЕМ
+  int? _selectedStatusId;
+  int? _selectedCategoryId;
 
   @override
   void initState() {
@@ -136,7 +134,7 @@ class _AppealListScreenState extends State<AppealListScreen> {
           if (Provider.of<AuthProvider>(context, listen: false).role ==
               'inspector')
             IconButton(
-              icon: const Icon(Icons.category), // Иконка категорий
+              icon: const Icon(Icons.category),
               onPressed: () {
                 Navigator.pushNamed(context, '/categories');
               },
@@ -144,7 +142,7 @@ class _AppealListScreenState extends State<AppealListScreen> {
           if (Provider.of<AuthProvider>(context, listen: false).role ==
               'inspector')
             IconButton(
-              icon: const Icon(Icons.fact_check),   // Статусы
+              icon: const Icon(Icons.fact_check),
               onPressed: () {
                 Navigator.pushNamed(context, '/statuses');
               },
@@ -158,14 +156,12 @@ class _AppealListScreenState extends State<AppealListScreen> {
           ),
         ],
       ),
-      body: Column(  //  Оборачиваем в Column
+      body: Column(
         children: [
-          //  Фильтры
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Column(
               children: [
-                //  Фильтр по статусу
                 DropdownButtonFormField<int?>(
                   decoration: const InputDecoration(labelText: 'Статус'),
                   value: _selectedStatusId,
@@ -183,12 +179,11 @@ class _AppealListScreenState extends State<AppealListScreen> {
                       _selectedStatusId = value;
                     });
                     Provider.of<AppealProvider>(context, listen: false).setStatusFilter(_selectedStatusId);
-                    _loadAppeals(); //  Перезагружаем данные
+                    _loadAppeals();
                   },
                   isExpanded: true,
                 ),
 
-                //  Фильтр по категории
                 DropdownButtonFormField<int?>(
                   decoration: const InputDecoration(labelText: 'Категория'),
                   value: _selectedCategoryId,
@@ -206,14 +201,14 @@ class _AppealListScreenState extends State<AppealListScreen> {
                       _selectedCategoryId = value;
                     });
                     Provider.of<AppealProvider>(context, listen: false).setCategoryFilter(_selectedCategoryId);
-                    _loadAppeals(); // Перезагружаем данные
+                    _loadAppeals();
                   },
                   isExpanded: true,
                 ),
               ],
             ),
           ),
-          Expanded(  //  Добавляем Expanded, чтобы список занимал всё доступное пространство
+          Expanded(
             child: Consumer<AppealProvider>(
               builder: (context, appealProvider, child) {
                 final role = Provider.of<AuthProvider>(context, listen: false).role;
@@ -227,7 +222,7 @@ class _AppealListScreenState extends State<AppealListScreen> {
                 }
 
                 return RefreshIndicator(
-                  onRefresh: _loadAppeals, //  Используем _loadAppeals
+                  onRefresh: _loadAppeals,
                   child: appealProvider.isLoading
                       ? const Center(child: CircularProgressIndicator())
                       : displayedAppeals.isEmpty
@@ -284,8 +279,6 @@ class _AppealListScreenState extends State<AppealListScreen> {
     final appealProvider = Provider.of<AppealProvider>(context, listen: false);
     int? tempStatusId = appealProvider.statusId;
     int? tempCategoryId = appealProvider.categoryId;
-    // DateTime? tempStartDate = appealProvider.startDate; //Убрали
-    // DateTime? tempEndDate = appealProvider.endDate;//Убрали
     String tempSortBy = appealProvider.sortBy;
     String tempSortOrder = appealProvider.sortOrder;
 
@@ -398,8 +391,6 @@ class _AppealListScreenState extends State<AppealListScreen> {
                     appealProvider.setSortOrder(tempSortOrder);
                     appealProvider.setStatusFilter(tempStatusId);
                     appealProvider.setCategoryFilter(tempCategoryId);
-                    // appealProvider.setStartDateFilter(tempStartDate); //Убрали
-                    // appealProvider.setEndDateFilter(tempEndDate); //Убрали
 
                     Navigator.of(context).pop();
                     _loadAppeals();

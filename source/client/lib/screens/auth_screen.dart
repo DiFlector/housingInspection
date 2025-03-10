@@ -20,7 +20,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
-        _error = null; // Сбрасываем предыдущую ошибку
+        _error = null;
       });
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -34,7 +34,7 @@ class _AuthScreenState extends State<AuthScreen> {
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         } else {
           setState(() {
-            _error = 'Неправильное имя пользователя или пароль'; //  Сообщение об ошибке
+            _error = 'Неправильное имя пользователя или пароль';
           });
         }
       } catch (e) {

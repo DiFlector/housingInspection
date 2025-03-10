@@ -2,7 +2,7 @@ class User {
   final int id;
   final String username;
   final String email;
-  final String? fullName; //  Поле fullName (может быть null)
+  final String? fullName;
   final String role;
   final bool isActive;
   final DateTime createdAt;
@@ -11,7 +11,7 @@ class User {
     required this.id,
     required this.username,
     required this.email,
-    this.fullName, //  Принимаем fullName в конструкторе
+    this.fullName,
     required this.role,
     required this.isActive,
     required this.createdAt,
@@ -22,7 +22,7 @@ class User {
       id: json['id'],
       username: json['username'],
       email: json['email'],
-      fullName: json['full_name'], //  Обрабатываем full_name
+      fullName: json['full_name'],
       role: json['role'],
       isActive: json['is_active'],
       createdAt: DateTime.parse(json['created_at']),

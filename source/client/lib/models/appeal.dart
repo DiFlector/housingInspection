@@ -39,7 +39,7 @@ class Appeal {
       user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
-// Метод toJson() нужен для отправки данных на сервер.
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
