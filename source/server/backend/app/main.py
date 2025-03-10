@@ -12,8 +12,9 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import timedelta, datetime
 import shutil
 import uuid
-import boto3  # Добавляем boto3
-from botocore.exceptions import ClientError # Добавляем для обработки ошибок
+import boto3
+from botocore.exceptions import ClientError
+from io import BytesIO
 
 
 router = APIRouter()
@@ -29,7 +30,6 @@ def get_db():
     finally:
         db.close()
 
-# Добавляем функцию для получения клиента Yandex Cloud
 def get_s3_client():
     session = boto3.session.Session()
     s3 = session.client(
@@ -41,14 +41,14 @@ def get_s3_client():
     return s3
 
 app = FastAPI()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") #  OAuth2, tokenUrl - относительный путь
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/")
@@ -70,9 +70,9 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]) # ИСПРАВЛЕНО
+        payload = jwt.decode(token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")])
         username: str = payload.get("sub")
-        role: str = payload.get("role")  #  Получаем роль
+        role: str = payload.get("role")
         if username is None:
             raise credentials_exception
     except JWTError:
@@ -80,12 +80,12 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
     user = db.query(models.User).filter(models.User.username == username).first()
     if user is None:
         raise credentials_exception
-    if user.role != role:  #  Проверяем, совпадает ли роль в токене с ролью в БД
+    if user.role != role:
         raise credentials_exception
 
     return user
 
-async def get_current_active_user(current_user: models.User = Depends(get_current_user)): # Используем get_current_active_user
+async def get_current_active_user(current_user: models.User = Depends(get_current_user)):
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -107,7 +107,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         password=hashed_password,
         full_name=user.full_name,
-        role = "citizen" #По умолчанию ставим роль citizen
+        role = "citizen"
     )
     db.add(db_user)
     db.commit()
@@ -120,7 +120,7 @@ def read_users(
     limit: int = 100,
     sort_by: str = "username",
     sort_order: str = "asc",
-    is_active: bool = True,  # Добавляем параметр is_active, по умолчанию True
+    is_active: bool = True,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -129,11 +129,9 @@ def read_users(
 
     query = db.query(models.User)
 
-    #  ФИЛЬТРАЦИЯ по активности
-    if is_active is not None:  #  Добавляем фильтрацию
+    if is_active is not None:
         query = query.filter(models.User.is_active == is_active)
 
-    #  СОРТИРОВКА (оставляем как есть)
     if sort_by == "email":
         if sort_order == "asc":
             query = query.order_by(asc(models.User.email))
@@ -144,14 +142,13 @@ def read_users(
             query = query.order_by(asc(models.User.role))
         else:
             query = query.order_by(desc(models.User.role))
-    elif sort_by == "created_at":  #  Добавим сортировку по дате создания
+    elif sort_by == "created_at":
         if sort_order == "asc":
             query = query.order_by(asc(models.User.created_at))
         else:
             query = query.order_by(desc(models.User.created_at))
 
-    # ... (default)
-    else:  # Если sort_by не одно из перечисленных, сортируем по имени
+    else:
         if sort_order == "asc":
             query = query.order_by(asc(models.User.username))
         else:
@@ -179,13 +176,12 @@ def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(ge
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    #  ПРОВЕРКА УНИКАЛЬНОСТИ USERNAME и EMAIL
-    if user.username != db_user.username:  #  Если username изменился
+    if user.username != db_user.username:
         existing_user = db.query(models.User).filter(models.User.username == user.username).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Пользователь с таким именем уже существует")
 
-    if user.email != db_user.email:  #  Если email изменился
+    if user.email != db_user.email:
         existing_user = db.query(models.User).filter(models.User.email == user.email).first()
         if existing_user:
             raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует")
@@ -199,7 +195,6 @@ def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(ge
 
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
-    #  Проверяем права доступа (только инспектор может удалять)
     if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized to delete users")
 
@@ -207,24 +202,21 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: model
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    #  Проверяем, можно ли удалить пользователя
-    if db_user.role != "citizen": #Если не гражданин
-        db_user.role = "citizen"  #  Меняем роль на "citizen"
+    if db_user.role != "citizen":
+        db_user.role = "citizen"
 
-    # Проверяем, есть ли у пользователя НЕЗАВЕРШЕННЫЕ обращения.
     active_appeals_exist = db.query(models.Appeal).join(models.AppealStatus).filter(
         models.Appeal.user_id == user_id,
-        models.AppealStatus.name.notin_(["Выполнено", "Отклонено"]) #  НЕ "Выполнено" И НЕ "Отклонено"
+        models.AppealStatus.name.notin_(["Выполнено", "Отклонено"])
     ).first() is not None
 
     if active_appeals_exist:
         raise HTTPException(status_code=400, detail="Cannot delete user: User has active appeals")
 
-    #  "Мягкое" удаление:  устанавливаем is_active = False
-    db_user.is_active = False  #  НЕ удаляем пользователя, а деактивируем
+    db_user.is_active = False
     db.commit()
 
-    return {"message": "User deactivated"}  #  Сообщение об успешной деактивации
+    return {"message": "User deactivated"}
 
 @router.post("/appeals/", response_model=schemas.Appeal)
 async def create_appeal(
@@ -243,50 +235,57 @@ async def create_appeal(
         status_id=1
     )
     db.add(db_appeal)
-    db.flush()  # Получаем ID нового обращения
+    db.flush()
 
-    s3_client = get_s3_client()  # Получаем клиент S3
+    s3_client = get_s3_client()
     bucket_name = os.environ.get("YC_BUCKET_NAME")
     file_paths = []
+
+    user_folder = current_user.username
+    appeal_folder = f"{db_appeal.id} {address}"
+    default_folder = "default"
+    chat_folder = "chat"
+
 
     if files:
         for file in files:
             try:
                 file_ext = os.path.splitext(file.filename)[1]
-                file_name = f"{uuid.uuid4()}{file_ext}"  # Уникальное имя файла
+                file_name = f"{uuid.uuid4()}{file_ext}"
+                file_key = f"{user_folder}/{appeal_folder}/{default_folder}/{file_name}"
 
-                # Загружаем файл в Yandex Cloud
                 s3_client.upload_fileobj(
-                    Fileobj=file.file,
+                    Fileobj=BytesIO(await file.read()),
                     Bucket=bucket_name,
-                    Key=file_name,  # Используем уникальное имя
+                    Key=file_key,
                     ExtraArgs={
-                        'ACL': 'public-read',  # Делаем файл публично доступным (для скачивания)
+                        'ACL': 'public-read',
                     }
                 )
 
-                # Формируем URL файла
-                file_url = f"{os.environ.get('YC_ENDPOINT_URL')}/{bucket_name}/{file_name}"
+                file_url = f"{os.environ.get('YC_ENDPOINT_URL')}/{bucket_name}/{file_key}"
                 file_paths.append(file_url)
 
-                # Получаем размер и тип файла
-                file.file.seek(0, os.SEEK_END)  # Переходим в конец файла
-                file_size = file.file.tell()  # Получаем размер в байтах
-                file.file.seek(0)  # Возвращаемся в начало файла
+                file_size = file.size
                 file_type = file.content_type
-
 
             except ClientError as e:
                 print(f"Error uploading file to Yandex Cloud: {e}")
-                raise HTTPException(status_code=500, detail=f"Error uploading file to Yandex Cloud: {e}")
-            finally:
-                await file.close()
+                raise HTTPException(status_code=500, detail=str(e))
+
 
     db_appeal.file_paths = ",".join(file_paths)
-    db_appeal.file_size = file_size      # Сохраняем размер
-    db_appeal.file_type = file_type      # Сохраняем тип
+    db_appeal.file_size = file_size
+    db_appeal.file_type = file_type
     db.commit()
     db.refresh(db_appeal)
+
+    try:
+        chat_key = f"{user_folder}/{appeal_folder}/{chat_folder}/"
+        s3_client.put_object(Bucket=bucket_name, Key=chat_key)
+    except ClientError as e:
+        print(f"Error creating chat folder: {e}")
+
     return db_appeal
 
 @router.get("/appeals/", response_model=List[schemas.Appeal])
@@ -295,8 +294,8 @@ def read_appeals(
     limit: int = 100,
     sort_by: str = "created_at",
     sort_order: str = "desc",
-    status_id: Optional[int] = None,  # Оставляем фильтр по status_id
-    category_id: Optional[int] = None,  # Оставляем фильтр по category_id
+    status_id: Optional[int] = None,
+    category_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -307,13 +306,11 @@ def read_appeals(
     else:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    # ФИЛЬТРАЦИЯ (оставляем только по status_id и category_id)
     if status_id is not None:
         query = query.filter(models.Appeal.status_id == status_id)
     if category_id is not None:
         query = query.filter(models.Appeal.category_id == category_id)
 
-    # СОРТИРОВКА
     if sort_by == "address":
         if sort_order == "asc":
             query = query.order_by(asc(models.Appeal.address))
@@ -339,7 +336,7 @@ def read_appeals(
     return appeals
 
 @router.get("/appeals/{appeal_id}", response_model=schemas.Appeal)
-def read_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)): # Исправлено
+def read_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
     if db_appeal is None:
         raise HTTPException(status_code=404, detail="Appeal not found")
@@ -356,21 +353,14 @@ async def update_appeal(
     category_id: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
     status_id: Optional[int] = Form(None),
-    files: List[UploadFile] = File(None)
 ):
     db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
     if db_appeal is None:
         raise HTTPException(status_code=404, detail="Appeal not found")
 
-    if current_user.role != "inspector":  #  Редактировать может только инспектор
+    if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized to update this appeal")
 
-
-    # --- 1. Сохраняем старый список файлов ---
-    old_file_paths = db_appeal.file_paths.split(",") if db_appeal.file_paths else []
-    old_file_paths = [path.strip() for path in old_file_paths if path.strip()] #Убираем пробелы и пустые
-
-    # --- 2. Обновляем простые поля ---
     if address is not None:
         db_appeal.address = address
     if category_id is not None:
@@ -380,73 +370,6 @@ async def update_appeal(
     if status_id is not None:
         db_appeal.status_id = status_id
 
-    # --- 3. Обрабатываем новые файлы ---
-    s3_client = get_s3_client()  # Клиент S3
-    bucket_name = os.environ.get("YC_BUCKET_NAME")
-    new_file_paths = []
-
-    if files:
-        for file in files:
-            try:
-                file_ext = os.path.splitext(file.filename)[1]
-                file_name = f"{uuid.uuid4()}{file_ext}"
-
-                # Загружаем в Yandex Cloud
-                s3_client.upload_fileobj(
-                    Fileobj=file.file,
-                    Bucket=bucket_name,
-                    Key=file_name,
-                    ExtraArgs={
-                        'ACL': 'public-read',  # Публичный доступ
-                    }
-                )
-                file_url = f"{os.environ.get('YC_ENDPOINT_URL')}/{bucket_name}/{file_name}"
-                new_file_paths.append(file_url)
-
-                 # Получаем размер и тип файла
-                file.file.seek(0, os.SEEK_END)
-                file_size = file.file.tell()
-                file.file.seek(0)
-                file_type = file.content_type
-
-
-            except ClientError as e:
-                print(f"Error uploading file to Yandex Cloud: {e}")
-                raise HTTPException(status_code=500, detail=f"Error uploading file to Yandex Cloud: {e}")
-            finally:
-                await file.close()
-
-    # --- 4. Объединяем старые и новые файлы (с учётом дубликатов) ---
-
-    # Добавляем старые файлы, *если* они есть
-    if db_appeal.file_paths:
-        current_file_paths = db_appeal.file_paths.split(",")
-        current_file_paths = [path.strip() for path in current_file_paths if path.strip()]#Убираем пробелы
-    else:
-        current_file_paths = []
-
-    # Добавляем новые файлы *без дубликатов*
-    for file_path in new_file_paths:
-        if file_path not in current_file_paths: #Проверяем
-            current_file_paths.append(file_path)
-
-
-    # --- 5. Удаляем "лишние" файлы из Yandex Cloud ---
-    for file_path in old_file_paths:
-        if file_path not in current_file_paths:
-            try:
-                #  Извлекаем key из URL
-                file_name = file_path.split('/')[-1]
-                s3_client.delete_object(Bucket=bucket_name, Key=file_name)
-            except ClientError as e:
-                print(f"Error deleting file from Yandex Cloud: {e}")
-                #  Не выбрасываем исключение, продолжаем удалять другие файлы
-
-
-    # --- 6. Сохраняем новый список файлов в БД ---
-    db_appeal.file_paths = ",".join(current_file_paths)
-    db_appeal.file_size = file_size  # Обновляем размер
-    db_appeal.file_type = file_type  # Обновляем тип
     db.commit()
     db.refresh(db_appeal)
     return db_appeal
@@ -461,22 +384,35 @@ def delete_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: m
     if current_user.role != "inspector" and current_user.role != "citizen":
         raise HTTPException(status_code=403, detail="Not authorized to delete this appeal")
 
-    s3_client = get_s3_client()  # Клиент S3
+    s3_client = get_s3_client()
     bucket_name = os.environ.get("YC_BUCKET_NAME")
+    user_folder = db_appeal.user.username
+    appeal_folder = f"{db_appeal.id} {db_appeal.address}"
+    default_folder = "default"
+    chat_folder = "chat"
+
 
     if db_appeal.file_paths:
         file_paths = db_appeal.file_paths.split(",")
         for file_path in file_paths:
             try:
-                file_path = file_path.strip() #Убираем пробелы
+                file_path = file_path.strip()
                 if file_path:
-                    #  Извлекаем key из URL
                     file_name = file_path.split('/')[-1]
-                    s3_client.delete_object(Bucket=bucket_name, Key=file_name)
+                    file_key = f"{user_folder}/{appeal_folder}/{default_folder}/{file_name}"
+                    s3_client.delete_object(Bucket=bucket_name, Key=file_key)
 
             except ClientError as e:
                 print(f"Error deleting file from Yandex Cloud: {e}")
-                #  Не выбрасываем исключение, продолжаем удалять другие файлы
+
+    try:
+        s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{default_folder}/")
+    except:
+        pass
+    try:
+        s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{chat_folder}/")
+    except:
+        pass
 
 
     db.delete(db_appeal)
@@ -488,10 +424,33 @@ def create_appeal_status(status: schemas.AppealStatusCreate, db: Session = Depen
     if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized")
 
-     #  ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ СТАТУС С ТАКИМ ИМЕНЕМ
     existing_status = db.query(models.AppealStatus).filter(models.AppealStatus.name == status.name).first()
     if existing_status:
         raise HTTPException(status_code=400, detail="Статус с таким названием уже существует")
+
+    db_status = models.AppealStatus(**status.model_dump())
+    db.add(db_status)
+    db.commit()
+    db.refresh(db_status)
+    return db_status
+
+@router.get("/appeal_statuses/", response_model=List[schemas.AppealStatus])
+def read_appeal_statuses(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    statuses = db.query(models.AppealStatus).offset(skip).limit(limit).all()
+    return statuses
+
+@router.put("/appeal_statuses/{status_id}", response_model=schemas.AppealStatus)
+def update_appeal_status(status_id: int, status: schemas.AppealStatusCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
+    if current_user.role != "inspector":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    db_status = db.query(models.AppealStatus).filter(models.AppealStatus.id == status_id).first()
+    if db_status is None:
+        raise HTTPException(status_code=404, detail="Status not found")
+    if db_status.name != status.name:
+        existing_status = db.query(models.AppealStatus).filter(models.AppealStatus.name == status.name).first()
+        if existing_status:
+            raise HTTPException(status_code=400, detail="Статус с таким названием уже существует")
 
     for var, value in status.model_dump(exclude_unset=False).items():
         setattr(db_status, var, value)
@@ -519,10 +478,9 @@ def create_appeal_category(category: schemas.AppealCategoryCreate, db: Session =
     if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    #  ПРОВЕРЯЕМ, ЕСТЬ ЛИ УЖЕ КАТЕГОРИЯ С ТАКИМ ИМЕНЕМ
     existing_category = db.query(models.AppealCategory).filter(models.AppealCategory.name == category.name).first()
     if existing_category:
-        raise HTTPException(status_code=400, detail="Категория с таким названием уже существует")  #  ИНФОРМАТИВНОЕ СООБЩЕНИЕ
+        raise HTTPException(status_code=400, detail="Категория с таким названием уже существует")
 
     db_category = models.AppealCategory(**category.model_dump())
     db.add(db_category)
@@ -544,8 +502,7 @@ def update_appeal_category(category_id: int, category: schemas.AppealCategoryCre
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
 
-    #  ПРОВЕРКА УНИКАЛЬНОСТИ ИМЕНИ
-    if db_category.name != category.name:  #  Если имя изменилось
+    if db_category.name != category.name:
         existing_category = db.query(models.AppealCategory).filter(models.AppealCategory.name == category.name).first()
         if existing_category:
             raise HTTPException(status_code=400, detail="Категория с таким названием уже существует")
@@ -581,12 +538,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    #  ДОБАВЛЯЕМ ПРОВЕРКУ АКТИВНОСТИ ПОЛЬЗОВАТЕЛЯ:
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,  #  Или другой код, например, 403 Forbidden
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User is inactive",
-            headers={"WWW-Authenticate": "Bearer"},  #  Можно не добавлять, но лучше оставить
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     access_token_expires = timedelta(minutes=int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")))

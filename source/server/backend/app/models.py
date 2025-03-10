@@ -10,10 +10,10 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
-    password = Column(String, nullable=False)  # В реальном приложении пароли нужно хранить в хешированном виде!
+    password = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     full_name = Column(String)
-    role = Column(String, nullable=False, default="citizen")  # "citizen" или "inspector"
+    role = Column(String, nullable=False, default="citizen")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 
@@ -54,9 +54,9 @@ class Appeal(Base):
     description = Column(Text)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-    file_paths = Column(Text, nullable=True) # Храним пути к файлам через запятую
-    file_size = Column(Integer, nullable=True) # Добавляем file_size
-    file_type = Column(String, nullable=True)  # Добавляем file_type
+    file_paths = Column(Text, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    file_type = Column(String, nullable=True)
 
     user = relationship("User", back_populates="appeals")
     status = relationship("AppealStatus", back_populates="appeals")
