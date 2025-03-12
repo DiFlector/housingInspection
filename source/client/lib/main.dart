@@ -13,6 +13,7 @@ import 'package:housing_inspection_client/screens/category_edit_screen.dart';
 import 'package:housing_inspection_client/screens/category_list_screen.dart';
 import 'package:housing_inspection_client/screens/status_edit_screen.dart';
 import 'package:housing_inspection_client/screens/status_list_screen.dart';
+import 'package:housing_inspection_client/screens/appeal_create_wizard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -67,6 +68,7 @@ class MyApp extends StatelessWidget {
         '/categories/edit': (context) => const CategoryEditScreen(category: null),
         '/statuses': (context) => const StatusListScreen(),
         '/statuses/edit': (context) => const StatusEditScreen(status: null),
+        '/appeals/create': (context) => const AppealCreateWizardScreen(),
       },
     );
   }

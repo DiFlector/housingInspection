@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:housing_inspection_client/models/appeal.dart';
 import 'package:housing_inspection_client/services/api_service.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/appeal_provider.dart';
 import 'appeal_update_screen.dart';
@@ -13,6 +14,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 //Импортируем
 import 'package:housing_inspection_client/providers/auth_provider.dart';
+import 'dart:math'; //  Добавляем импорт
 
 class AppealDetailScreen extends StatefulWidget {
   final int appealId;
@@ -23,32 +25,19 @@ class AppealDetailScreen extends StatefulWidget {
   _AppealDetailScreenState createState() => _AppealDetailScreenState();
 }
 
-Widget _buildFilePreview(String path) {
-  final extension = p.extension(path).toLowerCase();
-
-  if (['.jpg', '.jpeg', '.png', '.gif', '.bmp'].contains(extension)) {
-    return kIsWeb
-        ? Image.network(path, width: 100, height: 100)
-        : Image.file(File(path), width: 100, height: 100);
-  } else if (extension == '.pdf') {
-    return const SizedBox(
-        width: 100, height: 100, child: Icon(Icons.picture_as_pdf, size: 64));
-  } else {
-    return const SizedBox(
-        width: 100, height: 100, child: Icon(Icons.file_present, size: 64));
-  }
-}
-
 class _AppealDetailScreenState extends State<AppealDetailScreen> {
+//  Убираем initState
 
   @override
   Widget build(BuildContext context) {
+    // Получаем роль пользователя
     final role = Provider.of<AuthProvider>(context, listen: false).role;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Детали обращения'),
         actions: [
+          //  Показываем кнопку "Редактировать", только если роль пользователя - инспектор
           if (role == 'inspector')
             IconButton(
                 icon: const Icon(Icons.edit),
@@ -61,6 +50,7 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                     ),
                   );
                 }),
+          //  Показываем кнопку "Удалить", только если роль пользователя - инспектор
           if (role == 'inspector')
             IconButton(
                 onPressed: () {
@@ -73,11 +63,11 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                 icon: const Icon(Icons.delete)),
         ],
       ),
-      body: Consumer<AppealProvider>(
+      body: Consumer<AppealProvider>( //  Используем просто Consumer
         builder: (context, appealProvider, child) {
           final appeal = appealProvider.appeals.firstWhere(
                 (a) => a.id == widget.appealId,
-            orElse: () => Appeal(
+            orElse: () => Appeal( //  Тут тоже добавляем user: null
               id: 0,
               userId: 0,
               categoryId: 0,
@@ -85,6 +75,7 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
               address: '',
               createdAt: DateTime.now(),
               updatedAt: DateTime.now(),
+              user: null, //  Добавляем
             ),
           );
 
@@ -98,8 +89,9 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
           final statusName = Provider.of<StatusProvider>(context, listen: false)
               .getStatusName(appeal.statusId);
 
-          final filePaths = appeal.filePaths?.split(',') ?? [];
+          final filePaths = appeal.filePaths ?? []; //  Получаем список путей
 
+          // Формируем строку с именем отправителя:
           final senderName = (appeal.user?.fullName != null && appeal.user!.fullName!.isNotEmpty)
               ? '${appeal.user!.fullName} (${appeal.user!.username})'
               : appeal.user?.username ?? 'Неизвестный пользователь';
@@ -124,22 +116,48 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                 const SizedBox(height: 8),
                 Text('Обновлено: ${appeal.updatedAt}'),
                 const SizedBox(height: 8),
+                // Добавляем отображение имени пользователя
                 Text('Отправитель: $senderName'),
                 const SizedBox(height: 8),
-                Wrap(
-                  children: filePaths
-                      .map((path) => Padding(
-                    padding: const EdgeInsets.all(
-                        4.0),
-                    child: _buildFilePreview(path),
-                  ))
-                      .toList(),
-                ),
+                // Вместо Wrap используем Column и InkWell
+                Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: filePaths.map((path) {
+                      //  Отображаем размер и тип файла:
+                      print(filePaths);
+                      String fileName = path.split('/').last;
+                      // String fileInfo = appeal.fileType ?? 'Неизвестно'; //  Убираем
+
+                      return InkWell(
+                        onTap: () async {
+                          if (!await launchUrl(Uri.parse(path))) {
+                            throw Exception('Could not launch $path');
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4.0),
+                          child: Text(
+                            '$fileName', //  Оставляем только размер
+                            style: const TextStyle(
+                                color: Colors.blue, decoration: TextDecoration.underline),
+                          ),
+                        ),
+                      );
+                    }).toList()
+                )
               ],
             ),
           );
         },
       ),
     );
+  }
+  // Вспомогательная функция для форматирования размера файла
+  String formatBytes(int? bytes, [int decimals = 2]) {
+    if (bytes == null) return '0 Bytes';
+    if (bytes <= 0) return "0 Bytes";
+    const suffixes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    var i = (log(bytes) / log(1024)).floor(); //  Используем log
+    return '${(bytes / pow(1024, i)).toStringAsFixed(decimals)} ${suffixes[i]}';
   }
 }

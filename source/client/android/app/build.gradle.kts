@@ -9,7 +9,7 @@ android {
     namespace = "com.housing.housing_inspection_client"
     compileSdk = flutter.compileSdkVersion
 
-    compileSdkVersion = "android-34"
+    compileSdkVersion = "android-35"
 
     ndkVersion = "27.0.12077973"
 

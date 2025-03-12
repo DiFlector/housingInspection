@@ -1,4 +1,4 @@
-import 'package:housing_inspection_client/models/user.dart';
+import 'user.dart';
 
 class Appeal {
   final int id;
@@ -9,7 +9,9 @@ class Appeal {
   final String? description;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String? filePaths;
+  final List<String>? filePaths; //  Изменяем тип
+  final int? fileSize;
+  final String? fileType;
   final User? user;
 
   Appeal({
@@ -22,6 +24,8 @@ class Appeal {
     required this.createdAt,
     required this.updatedAt,
     this.filePaths,
+    this.fileSize,
+    this.fileType,
     this.user,
   });
 
@@ -35,11 +39,13 @@ class Appeal {
       description: json['description'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
-      filePaths: json['file_paths'],
+      filePaths: (json['file_paths'] as List<dynamic>?)?.map((e) => e as String).toList(), //  Обрабатываем как список
+      fileSize: json['file_size'],
+      fileType: json['file_type'],
       user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
-
+// Метод toJson() нужен для отправки данных на сервер.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -50,7 +56,9 @@ class Appeal {
       'description': description,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
-      'file_paths': filePaths
+      'file_paths': filePaths,
+      'file_size': fileSize,
+      'file_type': fileType
     };
   }
 }

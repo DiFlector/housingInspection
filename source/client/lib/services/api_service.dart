@@ -58,6 +58,9 @@ class ApiService {
       'sort_order': sortOrder,
       if (statusId != null) 'status_id': statusId.toString(),
       if (categoryId != null) 'category_id': categoryId.toString(),
+      //  УДАЛЯЕМ start_date и end_date:
+      // if (startDate != null) 'start_date': startDate.toIso8601String(),
+      // if (endDate != null) 'end_date': endDate.toIso8601String(),
     };
 
     final Uri uri = Uri.parse('$baseUrl/appeals/').replace(
@@ -71,9 +74,10 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      print(data); //  Добавляем вывод в консоль
       return data.map((json) => Appeal.fromJson(json)).toList();
     } else {
-      throw ApiException('Failed to load appeals: ${response.statusCode}');
+      throw ApiException('Failed to load appeals: ${response.statusCode}'); //Добавили
     }
   }
 
@@ -103,10 +107,9 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-      return Appeal.fromJson(data);
+      return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw ApiException('Failed to load appeal: ${response.statusCode}');
+      throw ApiException('Failed to load appeal', response.statusCode); //Добавили
     }
   }
 

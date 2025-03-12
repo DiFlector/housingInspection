@@ -266,10 +266,11 @@ class _AppealListScreenState extends State<AppealListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const AppealCreateScreen()));
+          Navigator.pushNamed(context, '/appeals/create').then((value) {
+            if (value == true) {  //  Если обращение создано
+              _loadAppeals();    //  Обновляем список
+            }
+          });
         },
         child: const Icon(Icons.add),
       ),
