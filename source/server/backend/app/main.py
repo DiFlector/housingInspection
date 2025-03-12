@@ -15,6 +15,8 @@ import uuid
 import boto3
 from botocore.exceptions import ClientError
 from io import BytesIO
+import re
+import json
 
 
 router = APIRouter()
@@ -62,6 +64,9 @@ def test_db(db: Session = Depends(get_db)):
         return {"status": "success", "result": result.scalar()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+def sanitize_filename(filename):
+    return re.sub(r'[\\/*?:"<>|]', "", filename).replace(" ", "_")
 
 async def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -235,15 +240,16 @@ async def create_appeal(
         status_id=1
     )
     db.add(db_appeal)
-    db.flush()
+    db.flush()  # Получаем ID нового обращения, до commit
 
     s3_client = get_s3_client()
     bucket_name = os.environ.get("YC_BUCKET_NAME")
     file_paths = []
 
+    # Создаем структуру папок
     user_folder = current_user.username
-    appeal_folder = f"{db_appeal.id} {address}"
-    default_folder = "default"
+    appeal_folder = f"{db_appeal.id}_{sanitize_filename(address)}/"  #  ID и адрес, с заменой + СЛЭШ
+    # default_folder = "default"  #  Убираем подпапку default
     chat_folder = "chat"
 
 
@@ -251,40 +257,51 @@ async def create_appeal(
         for file in files:
             try:
                 file_ext = os.path.splitext(file.filename)[1]
-                file_name = f"{uuid.uuid4()}{file_ext}"
-                file_key = f"{user_folder}/{appeal_folder}/{default_folder}/{file_name}"
+                # file_name = f"{uuid.uuid4()}{file_ext}"  #  Убираем UUID
+                #  Формируем имя файла:
+                file_name = f"{db_appeal.id}_{sanitize_filename(address)}_default{file_ext}"
 
+                #  Путь к файлу в Yandex Cloud
+                file_key = f"{user_folder}/{appeal_folder}/{file_name}" #  Убрали default
+
+                # Загружаем в Yandex Cloud
                 s3_client.upload_fileobj(
                     Fileobj=BytesIO(await file.read()),
                     Bucket=bucket_name,
-                    Key=file_key,
+                    Key=file_key,  #  Используем полный путь
                     ExtraArgs={
                         'ACL': 'public-read',
                     }
                 )
 
-                file_url = f"{os.environ.get('YC_ENDPOINT_URL')}/{bucket_name}/{file_key}"
+                # Формируем URL
+                file_url = f"https://storage.yandexcloud.net/{bucket_name}/{file_key}"
                 file_paths.append(file_url)
 
+                # Получаем размер и тип файла.
                 file_size = file.size
                 file_type = file.content_type
 
             except ClientError as e:
                 print(f"Error uploading file to Yandex Cloud: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail=str(e)) #  Более информативное сообщение
 
 
-    db_appeal.file_paths = ",".join(file_paths)
+    db_appeal.file_paths = json.dumps(file_paths)
     db_appeal.file_size = file_size
     db_appeal.file_type = file_type
     db.commit()
     db.refresh(db_appeal)
+    if db_appeal.file_paths:
+        db_appeal.file_paths = json.loads(db_appeal.file_paths)
 
+     # Создаем папку chat (пустую)
     try:
-        chat_key = f"{user_folder}/{appeal_folder}/{chat_folder}/"
-        s3_client.put_object(Bucket=bucket_name, Key=chat_key)
+        chat_key = f"{user_folder}/{appeal_folder}/{chat_folder}/"  #  Слэш в конце!
+        s3_client.put_object(Bucket=bucket_name, Key=chat_key) #  Пустой объект
     except ClientError as e:
         print(f"Error creating chat folder: {e}")
+        #  Не критично, если не удалось создать папку чата, продолжаем выполнение
 
     return db_appeal
 
@@ -306,11 +323,13 @@ def read_appeals(
     else:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
+    # ФИЛЬТРАЦИЯ (оставляем только по status_id и category_id)
     if status_id is not None:
         query = query.filter(models.Appeal.status_id == status_id)
     if category_id is not None:
         query = query.filter(models.Appeal.category_id == category_id)
 
+    # СОРТИРОВКА
     if sort_by == "address":
         if sort_order == "asc":
             query = query.order_by(asc(models.Appeal.address))
@@ -333,6 +352,9 @@ def read_appeals(
             query = query.order_by(desc(models.Appeal.created_at))
 
     appeals = query.offset(skip).limit(limit).all()
+    for appeal in appeals:
+        appeal.file_paths = json.loads(appeal.file_paths) if appeal.file_paths else []  # Декодируем JSON
+
     return appeals
 
 @router.get("/appeals/{appeal_id}", response_model=schemas.Appeal)
@@ -353,14 +375,16 @@ async def update_appeal(
     category_id: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
     status_id: Optional[int] = Form(None),
+    # files: List[UploadFile] = File(None)  # Убираем возможность загрузки файлов
 ):
     db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
     if db_appeal is None:
         raise HTTPException(status_code=404, detail="Appeal not found")
 
-    if current_user.role != "inspector":
+    if current_user.role != "inspector":  #  Редактировать может только инспектор
         raise HTTPException(status_code=403, detail="Not authorized to update this appeal")
 
+    # --- 1. Обновляем простые поля ---
     if address is not None:
         db_appeal.address = address
     if category_id is not None:
@@ -369,6 +393,30 @@ async def update_appeal(
         db_appeal.description = description
     if status_id is not None:
         db_appeal.status_id = status_id
+
+    # --- 2.  Удаление файлов (если инспектор меняет статус, например) ---
+    s3_client = get_s3_client()
+    bucket_name = os.environ.get("YC_BUCKET_NAME")
+    old_file_paths = json.loads(db_appeal.file_paths) if db_appeal.file_paths else [] #  Декодируем JSON
+
+    #  Удаление файлов, если необходимо
+    if status_id: #Если статус меняется, то файлы удаляются
+        for file_path in old_file_paths:
+            try:
+                # Извлекаем key из URL
+                file_name = file_path.split('/')[-1]
+                user_folder = db_appeal.user.username  #  Имя пользователя
+                appeal_folder = f"{db_appeal.id} {db_appeal.address}"  # ID и адрес
+                default_folder = "default"
+                file_key = f"{user_folder}/{appeal_folder}/{default_folder}/{file_name}"
+
+                s3_client.delete_object(Bucket=bucket_name, Key=file_key)
+
+            except ClientError as e:
+                print(f"Error deleting file from Yandex Cloud: {e}")
+        db_appeal.file_paths = "[]"  #  Очищаем список файлов в БД, записывая пустой JSON массив!
+        db_appeal.file_size = None
+        db_appeal.file_type = None
 
     db.commit()
     db.refresh(db_appeal)
@@ -384,11 +432,11 @@ def delete_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: m
     if current_user.role != "inspector" and current_user.role != "citizen":
         raise HTTPException(status_code=403, detail="Not authorized to delete this appeal")
 
-    s3_client = get_s3_client()
+    s3_client = get_s3_client()  # Клиент S3
     bucket_name = os.environ.get("YC_BUCKET_NAME")
     user_folder = db_appeal.user.username
-    appeal_folder = f"{db_appeal.id} {db_appeal.address}"
-    default_folder = "default"
+    appeal_folder = f"{db_appeal.id}_{sanitize_filename(db_appeal.address)}/" #  Исправлено
+    # default_folder = "default" #  Убрали
     chat_folder = "chat"
 
 
@@ -396,24 +444,40 @@ def delete_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: m
         file_paths = db_appeal.file_paths.split(",")
         for file_path in file_paths:
             try:
-                file_path = file_path.strip()
+                file_path = file_path.strip() #Убираем пробелы
                 if file_path:
+                    #  Извлекаем key из URL
                     file_name = file_path.split('/')[-1]
-                    file_key = f"{user_folder}/{appeal_folder}/{default_folder}/{file_name}"
+                    file_key = f"{user_folder}/{appeal_folder}/{file_name}" #  Исправлено
                     s3_client.delete_object(Bucket=bucket_name, Key=file_key)
 
             except ClientError as e:
                 print(f"Error deleting file from Yandex Cloud: {e}")
+                #  Не выбрасываем исключение, продолжаем удалять другие файлы
 
-    try:
-        s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{default_folder}/")
-    except:
-        pass
+    #Удаляем папку "default" -  уже не нужна
+    # try:
+    #     s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{default_folder}/")
+    # except:
+    #     pass
+
+    #Удаляем папку "chat"
     try:
         s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{chat_folder}/")
     except:
         pass
 
+    # Удаляем папку обращения
+    try:
+        objects_to_delete = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"{user_folder}/{appeal_folder}/")
+        if 'Contents' in objects_to_delete:
+            delete_keys = {'Objects': []}
+            for obj in objects_to_delete['Contents']:
+                delete_keys['Objects'].append({'Key': obj['Key']})
+            s3_client.delete_objects(Bucket=bucket_name, Delete=delete_keys)
+
+    except ClientError as e:
+        print(f"Error deleting appeal folder: {e}")
 
     db.delete(db_appeal)
     db.commit()

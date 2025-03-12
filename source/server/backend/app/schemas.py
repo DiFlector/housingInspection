@@ -38,13 +38,14 @@ class UserUpdate(UserBase):
     full_name: Optional[str] = None
     role: Optional[str] = None
 
-# Базовый класс для Appeal
+# Базовый класс для Appeal, содержащий общие поля
 class AppealBase(BaseModel):
     address: str = Field(..., example="ул. Пушкина, д. Колотушкина")
     description: Optional[str] = Field(None, example="Описание проблемы")
     category_id: int = Field(..., example=1)
-    file_size: Optional[int] = None
-    file_type: Optional[str] = None
+    file_size: Optional[int] = None #Добавил
+    file_type: Optional[str] = None#Добавил
+    #file_paths: Optional[str] = None  # Добавляем в AppealBase
 
 # Схема для создания обращения (Create)
 class AppealCreate(AppealBase):
@@ -57,17 +58,17 @@ class Appeal(AppealBase):
     status_id: int
     created_at: datetime
     updated_at: datetime
-    file_paths: Optional[str] = None
+    file_paths: Optional[List[str]] = None  #  Меняем на List[str]
     user: User
     class Config:
         from_attributes = True
 
 class AppealUpdate(AppealBase):
-  status_id: Optional[int] = None
+  status_id: Optional[int] = None #Позволяем менять статус.
   category_id: Optional[int] = Field(None, example=1)
   address: Optional[str] = Field(None, example="ул. Пушкина, д. Колотушкина")
   description: Optional[str] = Field(None, example="Описание проблемы")
-  file_paths: Optional[str] = None
+  # file_paths: Optional[str] = None # Добавляем в AppealUpdate
 
 # --- Схемы для статусов (AppealStatus) ---
 class AppealStatusBase(BaseModel):
