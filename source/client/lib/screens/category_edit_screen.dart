@@ -53,7 +53,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
         Navigator.of(context).pop();
       } on ApiException catch (e) {
         setState(() {
-          _error = e.message; //  Показываем сообщение из ApiException
+          _error = e.message;
         });
       } catch (e) {
         setState(() {
@@ -71,7 +71,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.category == null ? 'Создать категорию' : 'Редактировать категорию'), //  Перевод
+        title: Text(widget.category == null ? 'Создать категорию' : 'Редактировать категорию'),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -81,10 +81,10 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
             children: [
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Название категории'), //  Перевод
+                decoration: const InputDecoration(labelText: 'Название категории'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Пожалуйста, введите название категории'; //  Перевод
+                    return 'Пожалуйста, введите название категории';
                   }
                   return null;
                 },
@@ -94,7 +94,7 @@ class _CategoryEditScreenState extends State<CategoryEditScreen> {
                   ? const CircularProgressIndicator()
                   : ElevatedButton(
                 onPressed: _submit,
-                child: const Text('Сохранить'), //  Перевод
+                child: const Text('Сохранить'),
               ),
               if (_error != null)
                 Padding(

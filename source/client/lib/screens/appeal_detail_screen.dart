@@ -23,7 +23,6 @@ class AppealDetailScreen extends StatefulWidget {
   _AppealDetailScreenState createState() => _AppealDetailScreenState();
 }
 
-//Функция отображения
 Widget _buildFilePreview(String path) {
   final extension = p.extension(path).toLowerCase();
 
@@ -41,18 +40,15 @@ Widget _buildFilePreview(String path) {
 }
 
 class _AppealDetailScreenState extends State<AppealDetailScreen> {
-//  Убираем initState
 
   @override
   Widget build(BuildContext context) {
-    // Получаем роль пользователя
     final role = Provider.of<AuthProvider>(context, listen: false).role;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Детали обращения'),
         actions: [
-          //  Показываем кнопку "Редактировать", только если роль пользователя - инспектор
           if (role == 'inspector')
             IconButton(
                 icon: const Icon(Icons.edit),
@@ -65,7 +61,6 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                     ),
                   );
                 }),
-          //  Показываем кнопку "Удалить", только если роль пользователя - инспектор
           if (role == 'inspector')
             IconButton(
                 onPressed: () {
@@ -78,7 +73,7 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                 icon: const Icon(Icons.delete)),
         ],
       ),
-      body: Consumer<AppealProvider>( //  Используем просто Consumer
+      body: Consumer<AppealProvider>(
         builder: (context, appealProvider, child) {
           final appeal = appealProvider.appeals.firstWhere(
                 (a) => a.id == widget.appealId,
@@ -103,9 +98,8 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
           final statusName = Provider.of<StatusProvider>(context, listen: false)
               .getStatusName(appeal.statusId);
 
-          final filePaths = appeal.filePaths?.split(',') ?? []; //  Получаем список путей
+          final filePaths = appeal.filePaths?.split(',') ?? [];
 
-          // Формируем строку с именем отправителя:
           final senderName = (appeal.user?.fullName != null && appeal.user!.fullName!.isNotEmpty)
               ? '${appeal.user!.fullName} (${appeal.user!.username})'
               : appeal.user?.username ?? 'Неизвестный пользователь';
@@ -130,17 +124,14 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                 const SizedBox(height: 8),
                 Text('Обновлено: ${appeal.updatedAt}'),
                 const SizedBox(height: 8),
-                // Добавляем отображение имени пользователя
                 Text('Отправитель: $senderName'),
                 const SizedBox(height: 8),
-                // Text('Файлы: ${appeal.filePaths ?? 'N/A'}'), //  Удаляем этот Text
                 Wrap(
-                  //  Добавляем Wrap для отображения файлов
                   children: filePaths
                       .map((path) => Padding(
                     padding: const EdgeInsets.all(
-                        4.0), // Добавляем отступы
-                    child: _buildFilePreview(path), // Вызываем виджет
+                        4.0),
+                    child: _buildFilePreview(path),
                   ))
                       .toList(),
                 ),

@@ -23,7 +23,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
         Navigator.of(context).pushReplacementNamed('/');
       });
     } {
-      WidgetsBinding.instance.addPostFrameCallback((_) { //  ОТКЛАДЫВАЕМ
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         Provider.of<CategoryProvider>(context, listen: false).fetchCategories();
       });
     }
@@ -31,7 +31,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
   Future<void> _showErrorDialog(BuildContext context, String message) async {
     return showDialog<void>(
       context: context,
-      barrierDismissible: false, //  Нельзя закрыть диалог, нажав мимо
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Ошибка'),
@@ -46,7 +46,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
             TextButton(
               child: const Text('Ок'),
               onPressed: () {
-                Navigator.of(context).pop(); //  Закрываем диалог
+                Navigator.of(context).pop();
               },
             ),
           ],
@@ -63,14 +63,14 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Категории'), //  Перевод
+        title: const Text('Категории'),
       ),
       body: Consumer<CategoryProvider>(
         builder: (context, categoryProvider, child) {
           if (categoryProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           } else if (categoryProvider.categories.isEmpty) {
-            return const Center(child: Text('Категории не найдены.')); //  Перевод
+            return const Center(child: Text('Категории не найдены.'));
           } else {
             return ListView.builder(
               itemCount: categoryProvider.categories.length,
@@ -92,27 +92,27 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
                             ),
                           );
                         },
-                        tooltip: 'Редактировать', //  Перевод
+                        tooltip: 'Редактировать',
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete),
-                        tooltip: 'Удалить', //  Перевод
+                        tooltip: 'Удалить',
                         onPressed: () {
                           showDialog(
                             context: context,
                             builder: (BuildContext context) {
                               return AlertDialog(
-                                title: const Text('Подтверждение удаления'), //  Перевод
-                                content: Text('Вы уверены, что хотите удалить категорию "${category.name}"?'),  //  Перевод + имя
+                                title: const Text('Подтверждение удаления'),
+                                content: Text('Вы уверены, что хотите удалить категорию "${category.name}"?'),
                                 actions: <Widget>[
                                   TextButton(
-                                    child: const Text('Отмена'), //  Перевод
+                                    child: const Text('Отмена'),
                                     onPressed: () {
                                       Navigator.of(context).pop();
                                     },
                                   ),
                                   TextButton(
-                                    child: const Text('Удалить'), //  Перевод
+                                    child: const Text('Удалить'),
                                     onPressed: () async {
                                       Navigator.of(context).pop();
                                       try {
@@ -147,7 +147,7 @@ class _CategoryListScreenState extends State<CategoryListScreen> {
           );
         },
         child: const Icon(Icons.add),
-        tooltip: 'Добавить категорию', //  Перевод
+        tooltip: 'Добавить категорию',
       ),
     );
   }

@@ -47,14 +47,12 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
   int _categoryId = 1;
   String _description = '';
   int _statusId = 1;
-  List<String> _newFilePaths =
-  [];
   final ApiService _apiService = ApiService();
   late List<AppealCategory> _categories = [];
   late List<AppealStatus> _statuses = [];
   Appeal? _appeal;
   bool _isLoading = true;
-  String? _error; //  Добавили для отображения ошибок
+  String? _error;
 
   @override
   void initState() {
@@ -80,36 +78,13 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
       setState(() {
         _isLoading = false;
       });
-    } catch (e){ //  Ловим ошибки при загрузке данных
+    } catch (e){
       setState(() {
         _isLoading = false;
         _error = 'Ошибка при загрузке данных обращения: $e';
       });
     }
 
-  }
-
-  Future<void> _pickFiles() async {
-    FilePickerResult? result =
-    await FilePicker.platform.pickFiles(allowMultiple: true);
-
-    if (result != null) {
-      setState(() {
-        _newFilePaths
-            .addAll(result.paths.map((path) => path!).toList());
-      });
-    }
-  }
-
-  Future<void> _takePicture() async {
-    final ImagePicker _picker = ImagePicker();
-    final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-
-    if (photo != null) {
-      setState(() {
-        _newFilePaths.add(photo.path);
-      });
-    }
   }
 
   @override
@@ -175,23 +150,8 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _pickFiles,
-                child: const Text('Добавить файлы'),
-              ),
-              ElevatedButton(
-                onPressed: _takePicture,
-                child: const Text('Добавить фото'),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                children: _newFilePaths.map((path) => Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: _buildFilePreview(path),
-                )).toList(),
-              ),
 
-              if (_error != null)  //  Отображение ошибки
+              if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
                   child: Text(
@@ -201,7 +161,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                 ),
 
               ElevatedButton(
-                onPressed: () async {  //  Делаем асинхронным
+                onPressed: () async {
                   if (_formKey.currentState!.validate()) {
                     _formKey.currentState!.save();
 
@@ -218,12 +178,12 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                     );
 
                     setState(() {
-                      _isLoading = true; //  Включаем индикатор
-                      _error = null;     //  Сбрасываем ошибку
+                      _isLoading = true;
+                      _error = null;
                     });
 
                     try {
-                      await Provider.of<AppealProvider>(context, listen: false).updateAppealData(updatedAppeal, _newFilePaths);
+                      await Provider.of<AppealProvider>(context, listen: false).updateAppealData(updatedAppeal, []);
                       Navigator.pop(context);
                     } catch (e){
                       setState(() {
@@ -231,7 +191,7 @@ class _AppealUpdateScreenState extends State<AppealUpdateScreen> {
                       });
                     } finally {
                       setState(() {
-                        _isLoading = false; //  В любом случае выключаем
+                        _isLoading = false;
                       });
                     }
                   }

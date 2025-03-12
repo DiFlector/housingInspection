@@ -20,8 +20,8 @@ void main() async {
   await categoryProvider.fetchCategories();
   final statusProvider = StatusProvider();
   await statusProvider.fetchStatuses();
-  final authProvider = AuthProvider(); // Создаём экземпляр AuthProvider
-  await authProvider.loadToken(); // Загружаем токен при старте приложения
+  final authProvider = AuthProvider();
+  await authProvider.loadToken();
 
   runApp(
     MultiProvider(
@@ -30,7 +30,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => categoryProvider),
         ChangeNotifierProvider(create: (context) => statusProvider),
         ChangeNotifierProvider(create: (context) => authProvider),
-        ChangeNotifierProvider(create: (context) => UserProvider()),// Добавляем AuthProvider
+        ChangeNotifierProvider(create: (context) => UserProvider()),
       ],
       child: const MyApp(),
     ),
@@ -40,7 +40,7 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  static final navigatorKey = GlobalKey<NavigatorState>(); //  Добавляем ключ
+  static final navigatorKey = GlobalKey<NavigatorState>();
 
   @override
   Widget build(BuildContext context) {
@@ -51,11 +51,11 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: Consumer<AuthProvider>(  //  Используем Consumer
+      home: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           return authProvider.isLoggedIn
-              ? const AppealListScreen()  //  Если залогинен, то AppealListScreen
-              : const AuthScreen();      //  Если нет, то AuthScreen
+              ? const AppealListScreen()
+              : const AuthScreen();
         },
       ),
       routes: {

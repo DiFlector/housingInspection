@@ -23,7 +23,7 @@ class _StatusListScreenState extends State<StatusListScreen> {
         Navigator.of(context).pushReplacementNamed('/');
       });
     } {
-      WidgetsBinding.instance.addPostFrameCallback((_) { //  ОТКЛАДЫВАЕМ
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         Provider.of<StatusProvider>(context, listen: false).fetchStatuses();
       });
     }
@@ -64,14 +64,14 @@ class _StatusListScreenState extends State<StatusListScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Статусы'), //  Перевод
+        title: const Text('Статусы'),
       ),
       body: Consumer<StatusProvider>(
         builder: (context, statusProvider, child) {
           if (statusProvider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           } else if (statusProvider.statuses.isEmpty) {
-            return const Center(child: Text('Статусы не найдены.')); //  Перевод
+            return const Center(child: Text('Статусы не найдены.'));
           } else {
             return ListView.builder(
               itemCount: statusProvider.statuses.length,
@@ -84,7 +84,7 @@ class _StatusListScreenState extends State<StatusListScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.edit),
-                        tooltip: 'Редактировать', //  Перевод
+                        tooltip: 'Редактировать',
                         onPressed: (){
                           Navigator.push(context,
                               MaterialPageRoute(builder:
@@ -95,23 +95,23 @@ class _StatusListScreenState extends State<StatusListScreen> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete),
-                        tooltip: 'Удалить', //  Перевод
+                        tooltip: 'Удалить',
                         onPressed: () {
                           showDialog(
                             context: context,
                             builder: (BuildContext context) {
                               return AlertDialog(
-                                title: const Text('Подтверждение удаления'), //  Перевод
-                                content: Text('Вы уверены, что хотите удалить статус "${status.name}"?'),  //  Перевод + имя
+                                title: const Text('Подтверждение удаления'),
+                                content: Text('Вы уверены, что хотите удалить статус "${status.name}"?'),
                                 actions: <Widget>[
                                   TextButton(
-                                    child: const Text('Отмена'), //  Перевод
+                                    child: const Text('Отмена'),
                                     onPressed: () {
                                       Navigator.of(context).pop();
                                     },
                                   ),
                                   TextButton(
-                                      child: const Text('Удалить'), //  Перевод
+                                      child: const Text('Удалить'),
                                       onPressed: () async {
                                         Navigator.of(context).pop();
                                         try {
@@ -144,7 +144,7 @@ class _StatusListScreenState extends State<StatusListScreen> {
           );
         },
         child: const Icon(Icons.add),
-        tooltip: 'Добавить статус', //  Перевод
+        tooltip: 'Добавить статус',
       ),
     );
   }

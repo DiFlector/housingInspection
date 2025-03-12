@@ -8,13 +8,12 @@ class UserProvider with ChangeNotifier {
   List<User> _users = [];
   bool _isLoading = false;
 
-  String _sortBy = 'username'; //  Добавляем поле для хранения поля сортировки
-  String _sortOrder = 'asc';    //  Добавляем поле для хранения направления сортировки
+  String _sortBy = 'username';
+  String _sortOrder = 'asc';
 
   String get sortBy => _sortBy;
   String get sortOrder => _sortOrder;
 
-  //  Методы для установки параметров сортировки
   void setSortBy(String field) {
     _sortBy = field;
     notifyListeners();
@@ -25,13 +24,13 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  bool? _activeFilter = null; //  null - все, true - активные, false - неактивные
+  bool? _activeFilter = null;
 
   bool? get activeFilter => _activeFilter;
 
   void setActiveFilter(bool? value) {
     _activeFilter = value;
-    fetchUsers(); // Добавляем явный вызов
+    fetchUsers();
     notifyListeners();
   }
 
@@ -42,18 +41,16 @@ class UserProvider with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
-      // Добавляем проверку на наличие токена
       if (await _apiService.checkToken()) {
         if (_activeFilter == true) {
           _users = await _apiService.getUsersActive(sortBy: _sortBy, sortOrder: _sortOrder);
         } else if (_activeFilter == false) {
           _users = await _apiService.getUsersInactive(sortBy: _sortBy, sortOrder: _sortOrder);
-        } else { // _activeFilter == null
+        } else {
           final activeUsers = await _apiService.getUsersActive(sortBy: _sortBy, sortOrder: _sortOrder);
           final inactiveUsers = await _apiService.getUsersInactive(sortBy: _sortBy, sortOrder: _sortOrder);
-          _users = [...activeUsers, ...inactiveUsers]; // Объединяем списки
+          _users = [...activeUsers, ...inactiveUsers];
 
-          // Сортируем объединенный список:
           if (_sortBy == 'username') {
             _users.sort((a, b) => _sortOrder == 'asc'
                 ? a.username.compareTo(b.username)
@@ -73,7 +70,6 @@ class UserProvider with ChangeNotifier {
           }
         }
       } else {
-        // Если токена нет, устанавливаем пустой список
         _users = [];
       }
     } on ApiException catch (e) {

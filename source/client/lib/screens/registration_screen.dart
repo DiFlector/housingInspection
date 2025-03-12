@@ -42,19 +42,18 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
           Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
         } else {
           setState(() {
-            //  ПЕРЕВОДИМ СООБЩЕНИЯ ОБ ОШИБКАХ:
             if (result == "Username or email already registered") {
               _error = "Имя пользователя или email уже зарегистрированы.";
             } else if (result == "Passwords do not match") {
               _error = "Пароли не совпадают.";
             } else {
-              _error = result; //  Если ошибка другая, показываем как есть
+              _error = result;
             }
           });
         }
       } catch (e) {
         setState(() {
-          _error = 'Registration failed: $e'; //  Для других ошибок
+          _error = 'Registration failed: $e';
         });
       } finally {
         setState(() {
@@ -137,7 +136,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
               const SizedBox(height: 20),
               _isLoading
-                  ? const Center(child: CircularProgressIndicator()) //  Индикатор по центру
+                  ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
                 onPressed: _submit,
                 child: const Text('Зарегистрироваться'),

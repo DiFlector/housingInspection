@@ -32,7 +32,7 @@ class AuthProvider with ChangeNotifier {
     final result = await _authService.register(username, email, password, passwordConfirm, fullName, role);
     if(result == null){
       final success = await login(username, password);
-      if(success == true){ //  Явная проверка на true
+      if(success == true){
         return null;
       }
       else{
