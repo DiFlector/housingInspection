@@ -94,6 +94,44 @@ async def get_current_active_user(current_user: models.User = Depends(get_curren
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+    
+
+@router.get("/knowledge_base/{category}", response_model=List[str])
+async def get_knowledge_base_category(category: str, s3_client = Depends(get_s3_client)):
+    """
+    Получает список URL файлов в заданной категории (папке) в Object Storage.
+    """
+    bucket_name = os.environ.get("YC_BUCKET_NAME")
+    prefix = f"knowledge_base/{category}/"  # Папка knowledge_base
+
+    try:
+        objects = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+        file_urls = []
+
+        if 'Contents' in objects:  # Проверяем наличие ключа 'Contents'
+            for obj in objects['Contents']:
+                file_key = obj['Key']
+                #  ФИЛЬТРУЕМ:  Добавляем только если ключ НЕ заканчивается на /
+                if not file_key.endswith('/'):
+                    file_url = f"https://storage.yandexcloud.net/{bucket_name}/{file_key}"
+                    file_urls.append(file_url)
+        #  Если 'Contents' нет, то и делать ничего не нужно, file_urls останется пустым
+
+        return file_urls  # Возвращаем список (пустой или с URL файлов)
+
+    except ClientError as e:
+        print(f"Error accessing Yandex Cloud Object Storage: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    except ClientError as e:
+        print(f"Error accessing Yandex Cloud Object Storage: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e: # Добавили обработку других ошибок
+        print(f"Unexpected error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/users/", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
