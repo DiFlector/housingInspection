@@ -44,7 +44,8 @@ class ApiService {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
@@ -74,17 +75,17 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-      print(data); //  Добавляем вывод в консоль
       return data.map((json) => Appeal.fromJson(json)).toList();
     } else {
-      throw ApiException('Failed to load appeals: ${response.statusCode}'); //Добавили
+      throw ApiException(
+          'Failed to load appeals: ${response.statusCode}'); //Добавили
     }
   }
 
-  Future<bool> checkToken() async{
+  Future<bool> checkToken() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-    if (token == null || JwtDecoder.isExpired(token)){
+    if (token == null || JwtDecoder.isExpired(token)) {
       return false;
     }
     return true;
@@ -94,7 +95,8 @@ class ApiService {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
@@ -102,21 +104,24 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final response = await http.get(Uri.parse('$baseUrl/appeals/$id'),
+    final response = await http.get(
+      Uri.parse('$baseUrl/appeals/$id'),
       headers: headers,
     );
 
     if (response.statusCode == 200) {
       return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw ApiException('Failed to load appeal', response.statusCode); //Добавили
+      throw ApiException(
+          'Failed to load appeal', response.statusCode); //Добавили
     }
   }
 
   Future<Appeal> createAppeal(Appeal appeal, List<String> filePaths) async {
     final token = await _getToken();
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
@@ -124,7 +129,8 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/appeals/'));
+    final request =
+    http.MultipartRequest('POST', Uri.parse('$baseUrl/appeals/'));
 
     request.fields['address'] = appeal.address;
     request.fields['category_id'] = appeal.categoryId.toString();
@@ -150,7 +156,9 @@ class ApiService {
       return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create appeal';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to create appeal';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
@@ -159,7 +167,8 @@ class ApiService {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
@@ -196,7 +205,9 @@ class ApiService {
       return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update appeal';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to update appeal';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
@@ -204,14 +215,16 @@ class ApiService {
   Future<void> deleteAppeal(int id) async {
     final token = await _getToken();
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
-    final Map<String,String> headers = {};
-    if(token != null){
+    final Map<String, String> headers = {};
+    if (token != null) {
       headers.addAll({'Authorization': 'Bearer $token'});
     }
-    final response = await http.delete(Uri.parse('$baseUrl/appeals/$id'),
+    final response = await http.delete(
+      Uri.parse('$baseUrl/appeals/$id'),
       headers: headers,
     );
 
@@ -262,8 +275,9 @@ class ApiService {
       return AppealStatus.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage =
-      errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create status';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to create status';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
@@ -285,8 +299,9 @@ class ApiService {
       return AppealStatus.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage =
-      errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update status';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to update status';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
@@ -304,17 +319,19 @@ class ApiService {
 
     if (response.statusCode != 200) {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage =
-      errorData.containsKey('detail') ? errorData['detail'] : 'Failed to delete status';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to delete status';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
 
   Future<AppealCategory> createCategory(String name) async {
     final token = await _getToken();
-    final Map<String,String> headers = {};
-    if(token != null){
-      headers.addAll({'Authorization': 'Bearer $token', 'Content-Type': 'application/json'});
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers.addAll(
+          {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'});
     }
     final response = await http.post(
       Uri.parse('$baseUrl/appeal_categories/'),
@@ -326,37 +343,40 @@ class ApiService {
       return AppealCategory.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create category';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to create category';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
 
   Future<AppealCategory> updateCategory(AppealCategory updatedCategory) async {
     final token = await _getToken();
-    final Map<String,String> headers = {};
-    if(token != null){
-      headers.addAll({'Authorization': 'Bearer $token', 'Content-Type': 'application/json'});
+    final Map<String, String> headers = {};
+    if (token != null) {
+      headers.addAll(
+          {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'});
     }
     final response = await http.put(
       Uri.parse('$baseUrl/appeal_categories/${updatedCategory.id}'),
       headers: headers,
-      body: jsonEncode({
-        'name': updatedCategory.name
-      }),
+      body: jsonEncode({'name': updatedCategory.name}),
     );
     if (response.statusCode == 200) {
       return AppealCategory.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update category';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to update category';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
 
   Future<void> deleteCategory(int categoryId) async {
     final token = await _getToken();
-    final Map<String,String> headers = {};
-    if(token != null){
+    final Map<String, String> headers = {};
+    if (token != null) {
       headers.addAll({'Authorization': 'Bearer $token'});
     }
     final response = await http.delete(
@@ -366,7 +386,9 @@ class ApiService {
 
     if (response.statusCode != 200) {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to delete category';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to delete category';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
@@ -376,7 +398,8 @@ class ApiService {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
@@ -384,30 +407,39 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final response = await http.get(Uri.parse('$baseUrl/users/$id'),
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$id'),
       headers: headers,
     );
 
     if (response.statusCode == 200) {
       return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      throw ApiException('Failed to load user',response.statusCode);
+      throw ApiException('Failed to load user', response.statusCode);
     }
   }
 
-  Future<List<User>> getUsersActive({String sortBy = 'username', String sortOrder = 'asc'}) async {
-    return _getUsersByActivity(sortBy: sortBy, sortOrder: sortOrder, active: true);
+  Future<List<User>> getUsersActive(
+      {String sortBy = 'username', String sortOrder = 'asc'}) async {
+    return _getUsersByActivity(
+        sortBy: sortBy, sortOrder: sortOrder, active: true);
   }
 
-  Future<List<User>> getUsersInactive({String sortBy = 'username', String sortOrder = 'asc'}) async {
-    return _getUsersByActivity(sortBy: sortBy, sortOrder: sortOrder, active: false);
+  Future<List<User>> getUsersInactive(
+      {String sortBy = 'username', String sortOrder = 'asc'}) async {
+    return _getUsersByActivity(
+        sortBy: sortBy, sortOrder: sortOrder, active: false);
   }
 
-  Future<List<User>> _getUsersByActivity({String sortBy = 'username', String sortOrder = 'asc', required bool active}) async {
+  Future<List<User>> _getUsersByActivity(
+      {String sortBy = 'username',
+        String sortOrder = 'asc',
+        required bool active}) async {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
@@ -429,15 +461,17 @@ class ApiService {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
       return data.map((json) => User.fromJson(json)).toList();
     } else {
-      throw ApiException('Failed to load users',response.statusCode);
+      throw ApiException('Failed to load users', response.statusCode);
     }
   }
 
-  Future<List<User>> getUsers({String sortBy = 'username', String sortOrder = 'asc'}) async {
+  Future<List<User>> getUsers(
+      {String sortBy = 'username', String sortOrder = 'asc'}) async {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
@@ -459,11 +493,12 @@ class ApiService {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
       return data.map((json) => User.fromJson(json)).toList();
     } else {
-      throw ApiException('Failed to load users',response.statusCode);
+      throw ApiException('Failed to load users', response.statusCode);
     }
   }
 
-  Future<dynamic> register(String username, String email, String password, String passwordConfirm, String? fullName, String role) async{
+  Future<dynamic> register(String username, String email, String password,
+      String passwordConfirm, String? fullName, String role) async {
     final response = await http.post(
         Uri.parse('$baseUrl/users/'),
         body: jsonEncode({
@@ -476,19 +511,19 @@ class ApiService {
         }),
         headers: {
           'Content-Type': 'application/json',
-        }
-    );
+        });
     if (response.statusCode == 200) {
       final data = jsonDecode(utf8.decode(response.bodyBytes));
       return data;
-
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
       if (errorData.containsKey('detail')) {
         if (errorData['detail'] is String) {
           throw ApiException(errorData['detail'], response.statusCode);
         } else if (errorData['detail'] is List) {
-          final errorMessages = (errorData['detail'] as List).map((e) => e['msg'] as String).toList();
+          final errorMessages = (errorData['detail'] as List)
+              .map((e) => e['msg'] as String)
+              .toList();
           throw ApiException(errorMessages.join('\n'), response.statusCode);
         }
       }
@@ -501,12 +536,13 @@ class ApiService {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
-    final Map<String,String> headers = {};
-    if(token != null){
+    final Map<String, String> headers = {};
+    if (token != null) {
       headers.addAll({'Authorization': 'Bearer $token'});
     }
     headers.addAll({'Content-Type': 'application/json'});
@@ -520,13 +556,14 @@ class ApiService {
           'password_confirm': password,
           'full_name': fullName,
           'role': role,
-        })
-    );
+        }));
     if (response.statusCode == 200) {
       return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create user';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to create user';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
@@ -535,11 +572,12 @@ class ApiService {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
-    final Map<String,String> headers = {};
-    if(token != null){
+    final Map<String, String> headers = {};
+    if (token != null) {
       headers.addAll({'Authorization': 'Bearer $token'});
     }
     headers.addAll({'Content-Type': 'application/json'});
@@ -555,16 +593,18 @@ class ApiService {
           'full_name': updatedUser.fullName,
           'role': updatedUser.role,
           'is_active': updatedUser.isActive,
-        })
-    );
+        }));
 
-    print("updateUser response: statusCode=${response.statusCode}, body=${response.body}");
+    print(
+        "updateUser response: statusCode=${response.statusCode}, body=${response.body}");
 
     if (response.statusCode == 200) {
       return User.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update user';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to update user';
       throw ApiException(errorMessage, response.statusCode);
     }
   }
@@ -573,11 +613,12 @@ class ApiService {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState
+          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
-    final Map<String,String> headers = {};
-    if(token != null){
+    final Map<String, String> headers = {};
+    if (token != null) {
       headers.addAll({'Authorization': 'Bearer $token'});
     }
     final response = await http.delete(
@@ -587,8 +628,23 @@ class ApiService {
 
     if (response.statusCode != 200) {
       final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create user';
+      final errorMessage = errorData.containsKey('detail')
+          ? errorData['detail']
+          : 'Failed to create user';
       throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
+  Future<List<String>> getKnowledgeBaseCategoryFiles(String category) async {
+    final response =
+    await http.get(Uri.parse('$baseUrl/knowledge_base/$category'));
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data.map((e) => e as String).toList(); // Явное приведение к List<String>
+    } else {
+      throw Exception(
+          'Failed to load knowledge base files: ${response.statusCode}');
     }
   }
 }

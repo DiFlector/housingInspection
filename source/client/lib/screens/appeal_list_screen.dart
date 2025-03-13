@@ -8,6 +8,7 @@ import 'package:housing_inspection_client/providers/auth_provider.dart';
 import 'package:housing_inspection_client/models/appeal.dart';
 import 'package:housing_inspection_client/providers/category_provider.dart';
 import 'package:housing_inspection_client/models/api_exception.dart';
+import 'package:housing_inspection_client/screens/knowledge_base_screen.dart';
 
 class AppealListScreen extends StatefulWidget {
   const AppealListScreen({super.key});
@@ -27,18 +28,24 @@ class _AppealListScreenState extends State<AppealListScreen> {
       Provider.of<AppealProvider>(context, listen: false).fetchAppeals();
     });
   }
+
   Future<void> _loadAppeals() async {
     try {
       await Provider.of<AppealProvider>(context, listen: false).fetchAppeals();
-    } on ApiException catch (e){
+    } on ApiException catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Colors.red,),
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Colors.red,
+        ),
       );
-    }
-    catch (e) {
+    } catch (e) {
       print('Error loading categories and statuses: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Ошибка загрузки данных"), backgroundColor: Colors.red,),
+        const SnackBar(
+          content: Text("Ошибка загрузки данных"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -53,36 +60,52 @@ class _AppealListScreenState extends State<AppealListScreen> {
             onSelected: (String item) {
               switch (item) {
                 case 'address_asc':
-                  Provider.of<AppealProvider>(context, listen: false).setSortBy('address');
-                  Provider.of<AppealProvider>(context, listen: false).setSortOrder('asc');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortBy('address');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortOrder('asc');
                   break;
                 case 'address_desc':
-                  Provider.of<AppealProvider>(context, listen: false).setSortBy('address');
-                  Provider.of<AppealProvider>(context, listen: false).setSortOrder('desc');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortBy('address');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortOrder('desc');
                   break;
                 case 'category_asc':
-                  Provider.of<AppealProvider>(context, listen: false).setSortBy('category_id');
-                  Provider.of<AppealProvider>(context, listen: false).setSortOrder('asc');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortBy('category_id');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortOrder('asc');
                   break;
                 case 'category_desc':
-                  Provider.of<AppealProvider>(context, listen: false).setSortBy('category_id');
-                  Provider.of<AppealProvider>(context, listen: false).setSortOrder('desc');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortBy('category_id');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortOrder('desc');
                   break;
                 case 'status_asc':
-                  Provider.of<AppealProvider>(context, listen: false).setSortBy('status_id');
-                  Provider.of<AppealProvider>(context, listen: false).setSortOrder('asc');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortBy('status_id');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortOrder('asc');
                   break;
                 case 'status_desc':
-                  Provider.of<AppealProvider>(context, listen: false).setSortBy('status_id');
-                  Provider.of<AppealProvider>(context, listen: false).setSortOrder('desc');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortBy('status_id');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortOrder('desc');
                   break;
                 case 'date_asc':
-                  Provider.of<AppealProvider>(context, listen: false).setSortBy('created_at');
-                  Provider.of<AppealProvider>(context, listen: false).setSortOrder('asc');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortBy('created_at');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortOrder('asc');
                   break;
                 case 'date_desc':
-                  Provider.of<AppealProvider>(context, listen: false).setSortBy('created_at');
-                  Provider.of<AppealProvider>(context, listen: false).setSortOrder('desc');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortBy('created_at');
+                  Provider.of<AppealProvider>(context, listen: false)
+                      .setSortOrder('desc');
                   break;
               }
               _loadAppeals();
@@ -166,8 +189,11 @@ class _AppealListScreenState extends State<AppealListScreen> {
                   decoration: const InputDecoration(labelText: 'Статус'),
                   value: _selectedStatusId,
                   items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('Все')),
-                    ...Provider.of<StatusProvider>(context).statuses.map((status) {
+                    const DropdownMenuItem<int?>(
+                        value: null, child: Text('Все')),
+                    ...Provider.of<StatusProvider>(context)
+                        .statuses
+                        .map((status) {
                       return DropdownMenuItem<int?>(
                         value: status.id,
                         child: Text(status.name),
@@ -178,18 +204,21 @@ class _AppealListScreenState extends State<AppealListScreen> {
                     setState(() {
                       _selectedStatusId = value;
                     });
-                    Provider.of<AppealProvider>(context, listen: false).setStatusFilter(_selectedStatusId);
+                    Provider.of<AppealProvider>(context, listen: false)
+                        .setStatusFilter(_selectedStatusId);
                     _loadAppeals();
                   },
                   isExpanded: true,
                 ),
-
                 DropdownButtonFormField<int?>(
                   decoration: const InputDecoration(labelText: 'Категория'),
                   value: _selectedCategoryId,
                   items: [
-                    const DropdownMenuItem<int?>(value: null, child: Text('Все')),
-                    ...Provider.of<CategoryProvider>(context).categories.map((category) {
+                    const DropdownMenuItem<int?>(
+                        value: null, child: Text('Все')),
+                    ...Provider.of<CategoryProvider>(context)
+                        .categories
+                        .map((category) {
                       return DropdownMenuItem<int?>(
                         value: category.id,
                         child: Text(category.name),
@@ -200,7 +229,8 @@ class _AppealListScreenState extends State<AppealListScreen> {
                     setState(() {
                       _selectedCategoryId = value;
                     });
-                    Provider.of<AppealProvider>(context, listen: false).setCategoryFilter(_selectedCategoryId);
+                    Provider.of<AppealProvider>(context, listen: false)
+                        .setCategoryFilter(_selectedCategoryId);
                     _loadAppeals();
                   },
                   isExpanded: true,
@@ -211,14 +241,18 @@ class _AppealListScreenState extends State<AppealListScreen> {
           Expanded(
             child: Consumer<AppealProvider>(
               builder: (context, appealProvider, child) {
-                final role = Provider.of<AuthProvider>(context, listen: false).role;
+                final role =
+                    Provider.of<AuthProvider>(context, listen: false).role;
 
                 List<Appeal> displayedAppeals = [];
                 if (role == 'inspector') {
                   displayedAppeals = appealProvider.appeals;
                 } else {
-                  final currentUserId = Provider.of<AuthProvider>(context, listen: false).userId;
-                  displayedAppeals = appealProvider.appeals.where((appeal) => appeal.userId == currentUserId).toList();
+                  final currentUserId =
+                      Provider.of<AuthProvider>(context, listen: false).userId;
+                  displayedAppeals = appealProvider.appeals
+                      .where((appeal) => appeal.userId == currentUserId)
+                      .toList();
                 }
 
                 return RefreshIndicator(
@@ -232,15 +266,18 @@ class _AppealListScreenState extends State<AppealListScreen> {
                     itemBuilder: (context, index) {
                       final appeal = displayedAppeals[index];
                       final categoryName =
-                      Provider.of<CategoryProvider>(context, listen: false)
+                      Provider.of<CategoryProvider>(context,
+                          listen: false)
                           .getCategoryName(appeal.categoryId);
-                      final statusName =
-                      Provider.of<StatusProvider>(context, listen: false)
+                      final statusName = Provider.of<StatusProvider>(
+                          context,
+                          listen: false)
                           .getStatusName(appeal.statusId);
                       return ListTile(
                         title: Text(appeal.address),
                         subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment:
+                          CrossAxisAlignment.start,
                           children: [
                             Text('Категория: $categoryName'),
                             Text('Статус: $statusName'),
@@ -251,7 +288,8 @@ class _AppealListScreenState extends State<AppealListScreen> {
                             context,
                             MaterialPageRoute(
                               builder: (context) =>
-                                  AppealDetailScreen(appealId: appeal.id),
+                                  AppealDetailScreen(
+                                      appealId: appeal.id),
                             ),
                           );
                         },
@@ -264,18 +302,38 @@ class _AppealListScreenState extends State<AppealListScreen> {
           )
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/appeals/create').then((value) {
-            if (value == true) {  //  Если обращение создано
-              _loadAppeals();    //  Обновляем список
-            }
-          });
-        },
-        child: const Icon(Icons.add),
+      floatingActionButton: Row(
+        //  ИЗМЕНЕНИЕ:  Используем Row
+        mainAxisAlignment:
+        MainAxisAlignment.end, //  Выравнивание по правому краю
+        children: [
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/knowledge_base');
+            },
+            child: const Icon(Icons.book), //  Иконка книги
+            tooltip: 'База знаний',
+            heroTag: 'knowledge_base_button', // Уникальный тег
+          ),
+          const SizedBox(width: 16), //  Отступ между кнопками
+          FloatingActionButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/appeals/create').then((value) {
+                if (value == true) {
+                  // Если обращение создано
+                  _loadAppeals(); // Обновляем список
+                }
+              });
+            },
+            child: const Icon(Icons.add),
+            tooltip: 'Создать обращение',
+            heroTag: 'create_appeal_button', // Уникальный тег
+          ),
+        ],
       ),
     );
   }
+
   Future<void> _showFilterSortDialog(BuildContext context) async {
     final appealProvider = Provider.of<AppealProvider>(context, listen: false);
     int? tempStatusId = appealProvider.statusId;
@@ -299,8 +357,11 @@ class _AppealListScreenState extends State<AppealListScreen> {
                       value: tempStatusId,
                       isExpanded: true,
                       items: [
-                        const DropdownMenuItem<int?>(value: null, child: Text('Все')),
-                        ...Provider.of<StatusProvider>(context).statuses.map((status) {
+                        const DropdownMenuItem<int?>(
+                            value: null, child: Text('Все')),
+                        ...Provider.of<StatusProvider>(context)
+                            .statuses
+                            .map((status) {
                           return DropdownMenuItem<int?>(
                             value: status.id,
                             child: Text(status.name),
@@ -318,8 +379,11 @@ class _AppealListScreenState extends State<AppealListScreen> {
                       value: tempCategoryId,
                       isExpanded: true,
                       items: [
-                        const DropdownMenuItem<int?>(value: null, child: Text('Все')),
-                        ...Provider.of<CategoryProvider>(context).categories.map((category) {
+                        const DropdownMenuItem<int?>(
+                            value: null, child: Text('Все')),
+                        ...Provider.of<CategoryProvider>(context)
+                            .categories
+                            .map((category) {
                           return DropdownMenuItem<int?>(
                             value: category.id,
                             child: Text(category.name),
@@ -334,13 +398,18 @@ class _AppealListScreenState extends State<AppealListScreen> {
                     ),
                     DropdownButtonFormField<String>(
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Сортировать по'),
+                      decoration:
+                      const InputDecoration(labelText: 'Сортировать по'),
                       value: tempSortBy,
                       items: const [
-                        DropdownMenuItem(value: 'address', child: Text('Адресу')),
-                        DropdownMenuItem(value: 'category_id', child: Text('Категории')),
-                        DropdownMenuItem(value: 'status_id', child: Text('Статусу')),
-                        DropdownMenuItem(value: 'created_at', child: Text('Дате создания')),
+                        DropdownMenuItem(
+                            value: 'address', child: Text('Адресу')),
+                        DropdownMenuItem(
+                            value: 'category_id', child: Text('Категории')),
+                        DropdownMenuItem(
+                            value: 'status_id', child: Text('Статусу')),
+                        DropdownMenuItem(
+                            value: 'created_at', child: Text('Дате создания')),
                       ],
                       onChanged: (value) {
                         setState(() {

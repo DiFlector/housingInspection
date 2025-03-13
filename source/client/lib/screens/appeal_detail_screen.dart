@@ -123,8 +123,6 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                 Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: filePaths.map((path) {
-                      //  Отображаем размер и тип файла:
-                      print(filePaths);
                       String fileName = path.split('/').last;
                       // String fileInfo = appeal.fileType ?? 'Неизвестно'; //  Убираем
 
