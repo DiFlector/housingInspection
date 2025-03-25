@@ -18,6 +18,7 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     appeals = relationship("Appeal", back_populates="user")
+    messages = relationship("Message", back_populates="sender")
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"
@@ -61,7 +62,26 @@ class Appeal(Base):
     user = relationship("User", back_populates="appeals")
     status = relationship("AppealStatus", back_populates="appeals")
     category = relationship("AppealCategory", back_populates="appeals")
+    messages = relationship("Message", back_populates="appeal")
 
 
     def __repr__(self):
         return f"<Appeal(id={self.id}, user_id={self.user_id}, address='{self.address}')>"
+
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    appeal_id = Column(Integer, ForeignKey("appeals.id"), nullable=False)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+    file_paths = Column(Text, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    file_type = Column(String, nullable=True)
+
+    appeal = relationship("Appeal", back_populates="messages")
+    sender = relationship("User", back_populates="messages")
+
+    def __repr__(self):
+        return f"<Message(id={self.id}, appeal_id={self.appeal_id}, sender_id={self.sender_id})>"
