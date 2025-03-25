@@ -4,6 +4,7 @@ import 'package:housing_inspection_client/models/appeal.dart';
 import 'package:housing_inspection_client/models/appeal_category.dart';
 import 'package:housing_inspection_client/models/appeal_status.dart';
 import 'package:housing_inspection_client/models/user.dart';
+import 'package:housing_inspection_client/models/message.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
@@ -163,12 +164,11 @@ class ApiService {
     }
   }
 
-  Future<Appeal> updateAppeal(Appeal appeal, List<String> newFilePaths) async {
+  Future<Appeal> updateAppeal(Appeal appeal) async {
     final token = await _getToken();
 
     if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState
-          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
 
@@ -176,62 +176,58 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    final request = http.MultipartRequest(
-        'PUT', Uri.parse('$baseUrl/appeals/${appeal.id}'));
+    headers['Content-Type'] = 'application/json';
 
-    request.fields['address'] = appeal.address;
-    request.fields['category_id'] = appeal.categoryId.toString();
-    if (appeal.description != null) {
-      request.fields['description'] = appeal.description!;
-    }
-    if (appeal.statusId != null) {
-      request.fields['status_id'] = appeal.statusId.toString();
-    }
+    // Отправляем только НУЖНЫЕ поля в JSON
+    final body = jsonEncode({
+      'address': appeal.address,
+      'category_id': appeal.categoryId,
+      'description': appeal.description,
+      'status_id': appeal.statusId,
+      // 'file_paths': jsonEncode(appeal.filePaths ?? []), // НЕ ОТПРАВЛЯЕМ file_paths
+    });
 
-    List<String> updatedFilePaths = [];
-    for (var filePath in newFilePaths) {
-      final newPath = await _copyFileToAppDirectory(filePath);
-      updatedFilePaths.add(newPath);
-    }
-
-    for (var filePath in updatedFilePaths) {
-      request.files.add(await http.MultipartFile.fromPath('files', filePath));
-    }
-    request.headers.addAll(headers);
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
+    final response = await http.put(
+      Uri.parse('$baseUrl/appeals/${appeal.id}'),
+      headers: headers,
+      body: body,
+    );
 
     if (response.statusCode == 200) {
       return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
-      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail')
-          ? errorData['detail']
-          : 'Failed to update appeal';
-      throw ApiException(errorMessage, response.statusCode);
+      print("Update Appeal Error Body: ${response.body}");
+      try { // Добавляем try-catch для jsonDecode
+        final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+        final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update appeal';
+        throw ApiException(errorMessage, response.statusCode);
+      } catch (e) {
+        // Если тело ответа не JSON, возвращаем общую ошибку
+        throw ApiException('Failed to update appeal: ${response.statusCode}', response.statusCode);
+      }
     }
   }
 
-  Future<void> deleteAppeal(int id) async {
-    final token = await _getToken();
-    if (token == null || JwtDecoder.isExpired(token)) {
-      MyApp.navigatorKey.currentState
-          ?.pushNamedAndRemoveUntil('/auth', (route) => false);
-      throw ApiException("Authentication required");
-    }
-    final Map<String, String> headers = {};
-    if (token != null) {
-      headers.addAll({'Authorization': 'Bearer $token'});
-    }
-    final response = await http.delete(
-      Uri.parse('$baseUrl/appeals/$id'),
-      headers: headers,
-    );
-
-    if (response.statusCode != 200) {
-      throw ApiException('Failed to delete appeal', response.statusCode);
-    }
-  }
+  // Future<void> deleteAppeal(int id) async {
+  //   final token = await _getToken();
+  //   if (token == null || JwtDecoder.isExpired(token)) {
+  //     MyApp.navigatorKey.currentState
+  //         ?.pushNamedAndRemoveUntil('/auth', (route) => false);
+  //     throw ApiException("Authentication required");
+  //   }
+  //   final Map<String, String> headers = {};
+  //   if (token != null) {
+  //     headers.addAll({'Authorization': 'Bearer $token'});
+  //   }
+  //   final response = await http.delete(
+  //     Uri.parse('$baseUrl/appeals/$id'),
+  //     headers: headers,
+  //   );
+  //
+  //   if (response.statusCode != 200) {
+  //     throw ApiException('Failed to delete appeal', response.statusCode);
+  //   }
+  // }
 
   // --- Appeal Categories ---
 
@@ -635,13 +631,70 @@ class ApiService {
     }
   }
 
+  Future<List<Message>> getMessages(int appealId, {int skip = 0, int limit = 100, int? lastMessageId}) async { //  Добавили lastMessageId
+    final token = await _getToken();
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+    final Map<String,String> headers = {};
+    if(token != null){
+      headers.addAll({'Authorization': 'Bearer $token'});
+    }
+
+    final queryParameters = <String, String>{
+      'skip': skip.toString(),
+      'limit': limit.toString(),
+      if (lastMessageId != null) 'last_message_id': lastMessageId.toString(), //  ПРАВИЛЬНО передаём
+    };
+    final response = await http.get(
+        Uri.parse('$baseUrl/appeals/$appealId/messages').replace(queryParameters: queryParameters),
+        headers: headers
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data.map((json) => Message.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to load messages: ${response.statusCode}');
+    }
+  }
+
+  Future<Message> createMessage(int appealId, String content, List<String> filePaths) async {
+    final token = await _getToken();
+    if (token == null || JwtDecoder.isExpired(token)) {
+      MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
+      throw ApiException("Authentication required");
+    }
+    final Map<String,String> headers = {};
+    if(token != null){
+      headers.addAll({'Authorization': 'Bearer $token'});
+    }
+
+    headers.addAll({'Content-Type': 'application/json'});
+    final response = await http.post(
+      Uri.parse('$baseUrl/appeals/$appealId/messages'),
+      headers: headers,
+      body: jsonEncode({'content': content}), //  ВЕРНУЛИ КАК БЫЛО
+    );
+
+    if (response.statusCode == 200) {
+      return Message.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
+    } else {
+      print(response.body);
+      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create message';
+      throw ApiException(errorMessage, response.statusCode);
+    }
+  }
+
   Future<List<String>> getKnowledgeBaseCategoryFiles(String category) async {
     final response =
     await http.get(Uri.parse('$baseUrl/knowledge_base/$category'));
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-      return data.map((e) => e as String).toList(); // Явное приведение к List<String>
+      return data.map((e) => e as String).toList();
     } else {
       throw Exception(
           'Failed to load knowledge base files: ${response.statusCode}');

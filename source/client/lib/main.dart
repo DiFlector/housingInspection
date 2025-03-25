@@ -17,6 +17,7 @@ import 'package:housing_inspection_client/screens/appeal_create_wizard_screen.da
 import 'package:housing_inspection_client/providers/knowledge_base_provider.dart';
 import 'package:housing_inspection_client/screens/knowledge_base_category_screen.dart';
 import 'package:housing_inspection_client/screens/knowledge_base_screen.dart';
+import 'package:housing_inspection_client/providers/message_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,7 @@ void main() async {
         ChangeNotifierProvider(create: (context) => authProvider),
         ChangeNotifierProvider(create: (context) => UserProvider()),
         ChangeNotifierProvider(create: (context) => KnowledgeBaseProvider()),
+        ChangeNotifierProvider(create: (context) => MessageProvider()),
       ],
       child: const MyApp(),
     ),

@@ -100,23 +100,24 @@ class AppealProvider with ChangeNotifier {
       rethrow;
     }
   }
-  Future<void> deleteAppeal(int id) async {
-    try {
-      await _apiService.deleteAppeal(id);
-      _appeals.removeWhere((appeal) => appeal.id == id);
-      notifyListeners();
-    } on ApiException catch (e) {
-      rethrow;
-    }
-    catch (e){
-      print('Error delete appeal: $e');
-      rethrow;
-    }
-  }
+  // Future<void> deleteAppeal(int id) async {
+  //   try {
+  //     await _apiService.deleteAppeal(id);
+  //     _appeals.removeWhere((appeal) => appeal.id == id);
+  //     notifyListeners();
+  //   } on ApiException catch (e) {
+  //     rethrow;
+  //   }
+  //   catch (e){
+  //     print('Error delete appeal: $e');
+  //     rethrow;
+  //   }
+  // }
 
-  Future<void> updateAppealData(Appeal updatedAppeal, List<String> filePaths) async {
+  Future<void> updateAppealData(Appeal updatedAppeal) async { // УБРАЛИ List<String> filePaths
     try{
-      final newAppeal = await _apiService.updateAppeal(updatedAppeal, filePaths);
+      // Вызываем apiService.updateAppeal только с одним аргументом
+      final newAppeal = await _apiService.updateAppeal(updatedAppeal);
       final index = _appeals.indexWhere((appeal) => appeal.id == newAppeal.id);
 
       if (index != -1) {
