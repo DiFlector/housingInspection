@@ -6,7 +6,8 @@ from typing import List, Optional
 from fastapi.middleware.cors import CORSMiddleware
 from . import models, schemas
 from .auth import get_password_hash, verify_password, create_access_token, decode_token
-from .models import Base
+from .models import Base, Message
+from .schemas import Message, MessageCreate
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import timedelta, datetime
@@ -402,124 +403,168 @@ def read_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: mod
         raise HTTPException(status_code=404, detail="Appeal not found")
     if current_user.role == "citizen" and db_appeal.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to access this appeal")
+
+    #  ДЕКОДИРУЕМ file_paths ПЕРЕД ВОЗВРАТОМ:
+    if db_appeal.file_paths:
+        db_appeal.file_paths = json.loads(db_appeal.file_paths)
+    else:
+         db_appeal.file_paths = [] # Если null, возвращаем пустой список
+
     return db_appeal
 
 @router.put("/appeals/{appeal_id}", response_model=schemas.Appeal)
 async def update_appeal(
     appeal_id: int,
+    appeal_update: schemas.AppealUpdate,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
-    address: Optional[str] = Form(None),
-    category_id: Optional[int] = Form(None),
-    description: Optional[str] = Form(None),
-    status_id: Optional[int] = Form(None),
-    # files: List[UploadFile] = File(None)  # Убираем возможность загрузки файлов
+    ):
+    db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
+    if db_appeal is None:
+        raise HTTPException(status_code=404, detail="Appeal not found")
+
+    if current_user.role != "inspector":
+        raise HTTPException(status_code=403, detail="Not authorized to update this appeal")
+
+    update_data = appeal_update.model_dump(exclude_unset=True)
+
+    if 'address' in update_data:
+        db_appeal.address = update_data['address']
+    if 'category_id' in update_data:
+        db_appeal.category_id = update_data['category_id']
+    if 'description' in update_data:
+        db_appeal.description = update_data['description']
+    if 'status_id' in update_data:
+        db_appeal.status_id = update_data['status_id']
+
+    db.commit()
+    db.refresh(db_appeal)
+
+    #  ДЕКОДИРУЕМ file_paths ПЕРЕД ВОЗВРАТОМ:
+    if db_appeal.file_paths:
+        db_appeal.file_paths = json.loads(db_appeal.file_paths)
+    else:
+            db_appeal.file_paths = [] # Если null, возвращаем пустой список
+
+    return db_appeal
+
+# @router.delete("/appeals/{appeal_id}")
+# def delete_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)): # Исправлено
+#     db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
+#     if db_appeal is None:
+#         raise HTTPException(status_code=404, detail="Appeal not found")
+#     if current_user.role == "citizen" and db_appeal.user_id != current_user.id:
+#         raise HTTPException(status_code=403, detail="Not authorized to delete this appeal")
+#     if current_user.role != "inspector" and current_user.role != "citizen":
+#         raise HTTPException(status_code=403, detail="Not authorized to delete this appeal")
+
+#     s3_client = get_s3_client()  # Клиент S3
+#     bucket_name = os.environ.get("YC_BUCKET_NAME")
+#     user_folder = db_appeal.user.username
+#     appeal_folder = f"{db_appeal.id}_{sanitize_filename(db_appeal.address)}/" #  Исправлено
+#     # default_folder = "default" #  Убрали
+#     chat_folder = "chat"
+
+
+#     if db_appeal.file_paths:
+#         file_paths = db_appeal.file_paths.split(",")
+#         for file_path in file_paths:
+#             try:
+#                 file_path = file_path.strip() #Убираем пробелы
+#                 if file_path:
+#                     #  Извлекаем key из URL
+#                     file_name = file_path.split('/')[-1]
+#                     file_key = f"{user_folder}/{appeal_folder}/{file_name}" #  Исправлено
+#                     s3_client.delete_object(Bucket=bucket_name, Key=file_key)
+
+#             except ClientError as e:
+#                 print(f"Error deleting file from Yandex Cloud: {e}")
+#                 #  Не выбрасываем исключение, продолжаем удалять другие файлы
+
+#     #Удаляем папку "default" -  уже не нужна
+#     # try:
+#     #     s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{default_folder}/")
+#     # except:
+#     #     pass
+
+#     #Удаляем папку "chat"
+#     try:
+#         s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{chat_folder}/")
+#     except:
+#         pass
+
+#     # Удаляем папку обращения
+#     try:
+#         objects_to_delete = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"{user_folder}/{appeal_folder}/")
+#         if 'Contents' in objects_to_delete:
+#             delete_keys = {'Objects': []}
+#             for obj in objects_to_delete['Contents']:
+#                 delete_keys['Objects'].append({'Key': obj['Key']})
+#             s3_client.delete_objects(Bucket=bucket_name, Delete=delete_keys)
+
+#     except ClientError as e:
+#         print(f"Error deleting appeal folder: {e}")
+
+#     db.delete(db_appeal)
+#     db.commit()
+#     return {"message": "Appeal deleted"}
+
+@router.get("/appeals/{appeal_id}/messages", response_model=List[schemas.Message])
+def read_messages(
+    appeal_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    last_message_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
 ):
     db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
     if db_appeal is None:
         raise HTTPException(status_code=404, detail="Appeal not found")
 
-    if current_user.role != "inspector":  #  Редактировать может только инспектор
-        raise HTTPException(status_code=403, detail="Not authorized to update this appeal")
+    query = db.query(models.Message).filter(models.Message.appeal_id == appeal_id)
 
-    # --- 1. Обновляем простые поля ---
-    if address is not None:
-        db_appeal.address = address
-    if category_id is not None:
-        db_appeal.category_id = category_id
-    if description is not None:
-        db_appeal.description = description
-    if status_id is not None:
-        db_appeal.status_id = status_id
+    if last_message_id is not None:
+        query = query.filter(models.Message.id > last_message_id)
 
-    # --- 2.  Удаление файлов (если инспектор меняет статус, например) ---
-    s3_client = get_s3_client()
-    bucket_name = os.environ.get("YC_BUCKET_NAME")
-    old_file_paths = json.loads(db_appeal.file_paths) if db_appeal.file_paths else [] #  Декодируем JSON
+    messages = query.order_by(models.Message.id).offset(skip).limit(limit).all()
 
-    #  Удаление файлов, если необходимо
-    if status_id: #Если статус меняется, то файлы удаляются
-        for file_path in old_file_paths:
-            try:
-                # Извлекаем key из URL
-                file_name = file_path.split('/')[-1]
-                user_folder = db_appeal.user.username  #  Имя пользователя
-                appeal_folder = f"{db_appeal.id} {db_appeal.address}"  # ID и адрес
-                default_folder = "default"
-                file_key = f"{user_folder}/{appeal_folder}/{default_folder}/{file_name}"
+    return messages
 
-                s3_client.delete_object(Bucket=bucket_name, Key=file_key)
-
-            except ClientError as e:
-                print(f"Error deleting file from Yandex Cloud: {e}")
-        db_appeal.file_paths = "[]"  #  Очищаем список файлов в БД, записывая пустой JSON массив!
-        db_appeal.file_size = None
-        db_appeal.file_type = None
-
-    db.commit()
-    db.refresh(db_appeal)
-    return db_appeal
-
-@router.delete("/appeals/{appeal_id}")
-def delete_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)): # Исправлено
+@router.post("/appeals/{appeal_id}/messages", response_model=schemas.Message)
+async def create_message(
+    appeal_id: int,
+    message: schemas.MessageCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user),
+):
+    print("DEBUG: Received request data:", message)
     db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
     if db_appeal is None:
         raise HTTPException(status_code=404, detail="Appeal not found")
-    if current_user.role == "citizen" and db_appeal.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not authorized to delete this appeal")
-    if current_user.role != "inspector" and current_user.role != "citizen":
-        raise HTTPException(status_code=403, detail="Not authorized to delete this appeal")
 
-    s3_client = get_s3_client()  # Клиент S3
+    if current_user.id != db_appeal.user_id and current_user.role != "inspector":
+        raise HTTPException(status_code=403, detail="Not authorized to send messages to this appeal")
+
+    db_message = models.Message(
+        appeal_id=appeal_id,
+        sender_id=current_user.id,
+        content=message.content,
+    )
+
+    s3_client = get_s3_client()
     bucket_name = os.environ.get("YC_BUCKET_NAME")
+    file_paths = []
+
     user_folder = db_appeal.user.username
-    appeal_folder = f"{db_appeal.id}_{sanitize_filename(db_appeal.address)}/" #  Исправлено
-    # default_folder = "default" #  Убрали
+    appeal_folder = f"{db_appeal.id}_{sanitize_filename(db_appeal.address)}/"
     chat_folder = "chat"
-
-
-    if db_appeal.file_paths:
-        file_paths = db_appeal.file_paths.split(",")
-        for file_path in file_paths:
-            try:
-                file_path = file_path.strip() #Убираем пробелы
-                if file_path:
-                    #  Извлекаем key из URL
-                    file_name = file_path.split('/')[-1]
-                    file_key = f"{user_folder}/{appeal_folder}/{file_name}" #  Исправлено
-                    s3_client.delete_object(Bucket=bucket_name, Key=file_key)
-
-            except ClientError as e:
-                print(f"Error deleting file from Yandex Cloud: {e}")
-                #  Не выбрасываем исключение, продолжаем удалять другие файлы
-
-    #Удаляем папку "default" -  уже не нужна
-    # try:
-    #     s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{default_folder}/")
-    # except:
-    #     pass
-
-    #Удаляем папку "chat"
-    try:
-        s3_client.delete_object(Bucket=bucket_name, Key=f"{user_folder}/{appeal_folder}/{chat_folder}/")
-    except:
-        pass
-
-    # Удаляем папку обращения
-    try:
-        objects_to_delete = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=f"{user_folder}/{appeal_folder}/")
-        if 'Contents' in objects_to_delete:
-            delete_keys = {'Objects': []}
-            for obj in objects_to_delete['Contents']:
-                delete_keys['Objects'].append({'Key': obj['Key']})
-            s3_client.delete_objects(Bucket=bucket_name, Delete=delete_keys)
-
-    except ClientError as e:
-        print(f"Error deleting appeal folder: {e}")
-
-    db.delete(db_appeal)
+    db.add(db_message)
     db.commit()
-    return {"message": "Appeal deleted"}
+    db.refresh(db_message)
+    if db_message.file_paths:
+        db_message.file_paths = json.loads(db_message.file_paths)
+    return db_message
 
 @router.post("/appeal_statuses/", response_model=schemas.AppealStatus)
 def create_appeal_status(status: schemas.AppealStatusCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):

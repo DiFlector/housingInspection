@@ -6,12 +6,12 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-# --- Схемы для User ---
 class UserBase(BaseModel):
     username: str = Field(..., example="john_doe", min_length=3, max_length=20)
     email: EmailStr = Field(..., example="john.doe@example.com")
-    full_name: Optional[str] = Field(None, example="John Doe")
+    full_name: Optional[str] = Field(None, example="John Doe", max_length=100)
     role: str = Field(..., example="citizen")
+
 
 class UserCreate(UserBase):
     password: str = Field(..., example="secret_password", min_length=8)
@@ -25,6 +25,12 @@ class UserCreate(UserBase):
             raise ValueError('Password must contain at least one uppercase letter')
         return v
 
+    @validator("password_confirm")
+    def passwords_match(cls, v, values, **kwargs):
+        if 'password' in values and v != values['password']:
+            raise ValueError('Passwords do not match')
+        return v
+
 class User(UserBase):
     id: int
     is_active: bool
@@ -34,45 +40,42 @@ class User(UserBase):
         from_attributes = True
 
 class UserUpdate(UserBase):
-    is_active: Optional[bool] = None
-    full_name: Optional[str] = None
+    username: str = Field(..., example="john_doe", min_length=3, max_length=20)
+    email: EmailStr = Field(..., example="john.doe@example.com")
+    full_name: Optional[str] = Field(None, example="John Doe", max_length=100)
     role: Optional[str] = None
+    is_active: Optional[bool] = None
 
-# Базовый класс для Appeal, содержащий общие поля
+
 class AppealBase(BaseModel):
-    address: str = Field(..., example="ул. Пушкина, д. Колотушкина")
-    description: Optional[str] = Field(None, example="Описание проблемы")
+    address: str = Field(..., example="ул. Пушкина, д. Колотушкина", min_length=5, max_length=255)
+    description: Optional[str] = Field(None, example="Описание проблемы", max_length=1000)
     category_id: int = Field(..., example=1)
-    file_size: Optional[int] = None #Добавил
-    file_type: Optional[str] = None#Добавил
-    #file_paths: Optional[str] = None  # Добавляем в AppealBase
+    file_size: Optional[int] = None
+    file_type: Optional[str] = None
 
-# Схема для создания обращения (Create)
 class AppealCreate(AppealBase):
     pass
 
-# Схема для чтения обращения (Read)
 class Appeal(AppealBase):
     id: int
     user_id: int
     status_id: int
     created_at: datetime
     updated_at: datetime
-    file_paths: Optional[List[str]] = None  #  Меняем на List[str]
+    file_paths: Optional[List[str]] = None
     user: User
     class Config:
         from_attributes = True
 
 class AppealUpdate(AppealBase):
-  status_id: Optional[int] = None #Позволяем менять статус.
+  status_id: Optional[int] = None
   category_id: Optional[int] = Field(None, example=1)
-  address: Optional[str] = Field(None, example="ул. Пушкина, д. Колотушкина")
-  description: Optional[str] = Field(None, example="Описание проблемы")
-  # file_paths: Optional[str] = None # Добавляем в AppealUpdate
+  address: Optional[str] = Field(None, example="ул. Пушкина, д. Колотушкина", min_length=5, max_length=255)
+  description: Optional[str] = Field(None, example="Описание проблемы", max_length=1000)
 
-# --- Схемы для статусов (AppealStatus) ---
 class AppealStatusBase(BaseModel):
-  name: str = Field(..., example="New")
+  name: str = Field(..., example="New", max_length=50)
 
 class AppealStatusCreate(AppealStatusBase):
   pass
@@ -82,9 +85,8 @@ class AppealStatus(AppealStatusBase):
   class Config:
       from_attributes = True
 
-# --- Схемы для категорий (AppealCategory) ---
 class AppealCategoryBase(BaseModel):
-  name: str = Field(..., example="Room merge")
+  name: str = Field(..., example="Room merge", max_length=50)
 
 class AppealCategoryCreate(AppealCategoryBase):
   pass
@@ -93,3 +95,22 @@ class AppealCategory(AppealCategoryBase):
   id: int
   class Config:
       from_attributes = True
+
+class MessageBase(BaseModel):
+    content: str = Field(..., example="Текст сообщения", min_length=1)
+    file_size: Optional[int] = None
+    file_type: Optional[str] = None
+
+class MessageCreate(MessageBase):
+    pass
+
+class Message(MessageBase):
+    id: int
+    appeal_id: int
+    sender_id: int
+    created_at: datetime
+    file_paths: Optional[List[str]] = None
+    sender: User
+
+    class Config:
+        from_attributes = True
