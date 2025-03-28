@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:housing_inspection_client/providers/knowledge_base_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:path/path.dart' as p;
-import 'dart:io';
 import 'package:flutter/foundation.dart'
     show kIsWeb, consolidateHttpClientResponseBytes;
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_markdown/flutter_markdown.dart'; //  Импортируем
-import 'package:http/http.dart' as http; //  ДОБАВЛЕНО
-import 'dart:convert'; //  ДОБАВЛЕНО
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class KnowledgeBaseCategoryScreen extends StatefulWidget {
   final String category;
@@ -57,28 +55,21 @@ class _KnowledgeBaseCategoryScreenState
             return const Center(child: Text('Файлы не найдены'));
           } else {
             return ListView.builder(
-              //  ФИЛЬТРУЕМ СПИСОК:
               itemCount: provider.fileUrls!
                   .where((url) => !p.basename(url).endsWith('/'))
-                  .length, //  Считаем длину отфильтрованного списка
+                  .length,
               itemBuilder: (context, index) {
-                //  ФИЛЬТРУЕМ СПИСОК ПЕРЕД ОТОБРАЖЕНИЕМ:
                 final url = provider.fileUrls!
                     .where((url) => !p.basename(url).endsWith('/'))
-                    .toList()[index]; //  Получаем URL из отфильтрованного списка
+                    .toList()[index];
                 final fileName = p.basename(url);
                 final extension = p.extension(url).toLowerCase();
 
                 return ListTile(
                   title: Text(fileName),
                   trailing:
-                  _buildIcon(extension), //  Иконка в зависимости от расширения
+                  _buildIcon(extension),
                   onTap: () async {
-                    //  УБИРАЕМ СКАЧИВАНИЕ:
-                    // if (extension == '.docx') {
-                    //   _downloadFile(url, fileName);
-                    // } else {
-                    //  ОТКРЫВАЕМ ВНУТРИ ПРИЛОЖЕНИЯ (MarkdownViewerScreen):
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -102,19 +93,15 @@ class _KnowledgeBaseCategoryScreenState
         return const Icon(Icons.picture_as_pdf);
       case '.docx':
         return const Icon(
-            Icons.file_download); //  Иконка скачивания для docx (оставляем)
-      case '.md': //  Добавили
-        return const Icon(Icons.description); //  Иконка для Markdown
+            Icons.file_download);
+      case '.md':
+        return const Icon(Icons.description);
       default:
         return const Icon(Icons.insert_drive_file);
     }
   }
-
-//  УДАЛЯЕМ _downloadFile, он больше не нужен
-
 }
 
-//  НОВЫЙ ВИДЖЕТ ДЛЯ ОТОБРАЖЕНИЯ MARKDOWN:
 class MarkdownViewerScreen extends StatelessWidget {
   final String url;
 
@@ -124,7 +111,7 @@ class MarkdownViewerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(p.basename(url)), //  Отображаем имя файла в заголовке
+        title: Text(p.basename(url)),
       ),
       body: FutureBuilder<String>(
         future: _loadMarkdown(url),
@@ -136,7 +123,7 @@ class MarkdownViewerScreen extends StatelessWidget {
           } else if (snapshot.data == null || snapshot.data!.isEmpty) {
             return const Center(child: Text('Не удалось загрузить файл'));
           } else {
-            return Markdown(data: snapshot.data!); //  Используем Markdown виджет
+            return Markdown(data: snapshot.data!);
           }
         },
       ),

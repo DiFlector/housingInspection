@@ -114,9 +114,8 @@ class AppealProvider with ChangeNotifier {
   //   }
   // }
 
-  Future<void> updateAppealData(Appeal updatedAppeal) async { // УБРАЛИ List<String> filePaths
+  Future<void> updateAppealData(Appeal updatedAppeal) async {
     try{
-      // Вызываем apiService.updateAppeal только с одним аргументом
       final newAppeal = await _apiService.updateAppeal(updatedAppeal);
       final index = _appeals.indexWhere((appeal) => appeal.id == newAppeal.id);
 

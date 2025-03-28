@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:housing_inspection_client/models/appeal.dart';
-import 'package:housing_inspection_client/services/api_service.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -11,7 +10,6 @@ import 'appeal_update_screen.dart';
 
 import '../providers/category_provider.dart';
 import '../providers/status_provider.dart';
-import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:housing_inspection_client/providers/auth_provider.dart';
 import 'dart:math';
@@ -84,8 +82,7 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
           .sendMessage(widget.appealId, content, []);
       _messageController.clear();
 
-      //  ИЗМЕНЕНИЕ:  Добавляем небольшую задержку:
-      Future.delayed(Duration(milliseconds: 500), () { //  Задержка 100 мс
+      Future.delayed(Duration(milliseconds: 500), () {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
@@ -120,10 +117,10 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
             ),
         ],
       ),
-      resizeToAvoidBottomInset: true, // Убедись, что это здесь
+      resizeToAvoidBottomInset: true,
       body: Column(
         children: [
-          Expanded( //  Один Expanded на всё
+          Expanded(
             child: Consumer<AppealProvider>(
               builder: (context, appealProvider, child) {
                 final appeal = appealProvider.appeals.firstWhere(
@@ -158,10 +155,9 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                     ? '${appeal.user!.fullName} (${appeal.user!.username})'
                     : appeal.user?.username ?? 'Неизвестный пользователь';
 
-                return Column( //  Внутри Expanded - Column
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    //  Виджеты с информацией об обращении:
                     Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -187,7 +183,6 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: filePaths.map((path) {
-                              // String fileName = p.basename(path); // Убираем, используем функцию
                               return InkWell(
                                 onTap: () async {
                                   if (!await launchUrl(Uri.parse(path))) {
@@ -198,12 +193,12 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                                   padding:
                                   const EdgeInsets.symmetric(vertical: 4.0),
                                   child: Text(
-                                    _shortenFileName(path, 30), // Используем функцию сокращения
+                                    _shortenFileName(path, 30),
                                     style: const TextStyle(
                                       color: Colors.blue,
                                       decoration: TextDecoration.underline,
                                     ),
-                                    overflow: TextOverflow.ellipsis, // Добавляем эллипсис
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               );
@@ -212,9 +207,7 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                         ],
                       ),
                     ),
-                    //  Чат (оборачиваем в Flexible):
                     Expanded(
-                      //  Оборачиваем в Expanded
                       child: Container(
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
@@ -231,7 +224,6 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                             } else if (provider.error != null) {
                               return Center(child: Text('Ошибка: ${provider.error}'));
                             } else {
-                              //  ДОБАВЛЯЕМ ПРОВЕРКУ hasNewMessages:
                               if (provider.hasNewMessages) {
                                 WidgetsBinding.instance.addPostFrameCallback((_) {
                                   if (mounted && _scrollController.hasClients) {
@@ -241,7 +233,7 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                                       curve: Curves.easeOut,
                                     );
                                   }
-                                  provider.hasNewMessages = false; //  ИСПОЛЬЗУЕМ СЕТТЕР
+                                  provider.hasNewMessages = false;
                                 });
                               }
 
@@ -259,12 +251,11 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                         ),
                       ),
                     ),
-                    //  Поле ввода (остаётся внизу, как и было):
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: IntrinsicHeight( //  Оборачиваем Row в IntrinsicHeight
+                      child: IntrinsicHeight(
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center, //  Центрируем по вертикали
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Expanded(
                               child: ConstrainedBox(
@@ -277,8 +268,8 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                                     hintText: 'Введите сообщение...',
                                     border: OutlineInputBorder(),
                                   ),
-                                  maxLines: 3, //  Убираем maxLines: 5
-                                  minLines: 1, // Добавили minLines
+                                  maxLines: 3,
+                                  minLines: 1,
                                   keyboardType: TextInputType.multiline,
                                   maxLength: 500,
                                   maxLengthEnforcement: MaxLengthEnforcement.enforced,
@@ -293,7 +284,7 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: MediaQuery.of(context).size.height * 0.01), // Отступ снизу
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.01),
                   ],
                 );
               },
@@ -363,15 +354,15 @@ class MessageBubble extends StatelessWidget {
                     }
                   },
                   child: Row(
-                    mainAxisSize: MainAxisSize.min, //  ВАЖНО!
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.attach_file, size: 16), // Уменьшим иконку
+                      Icon(Icons.attach_file, size: 16),
                       SizedBox(width: 4),
-                      Expanded( // Обернем текст в Expanded
+                      Expanded(
                         child: Text(
-                          _shortenFileName(e, 25), // Используем функцию сокращения
+                          _shortenFileName(e, 25),
                           style: TextStyle(fontSize: 12, color: Colors.blue[800], decoration: TextDecoration.underline),
-                          overflow: TextOverflow.ellipsis, // Добавляем эллипсис
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],

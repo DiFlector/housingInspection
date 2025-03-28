@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:housing_inspection_client/screens/appeal_detail_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:housing_inspection_client/providers/appeal_provider.dart';
-import 'package:housing_inspection_client/screens/appeal_create_screen.dart';
 import 'package:housing_inspection_client/providers/status_provider.dart';
 import 'package:housing_inspection_client/providers/auth_provider.dart';
 import 'package:housing_inspection_client/models/appeal.dart';
 import 'package:housing_inspection_client/providers/category_provider.dart';
 import 'package:housing_inspection_client/models/api_exception.dart';
-import 'package:housing_inspection_client/screens/knowledge_base_screen.dart';
 
 class AppealListScreen extends StatefulWidget {
   const AppealListScreen({super.key});
@@ -303,31 +301,29 @@ class _AppealListScreenState extends State<AppealListScreen> {
         ],
       ),
       floatingActionButton: Row(
-        //  ИЗМЕНЕНИЕ:  Используем Row
         mainAxisAlignment:
-        MainAxisAlignment.end, //  Выравнивание по правому краю
+        MainAxisAlignment.end,
         children: [
           FloatingActionButton(
             onPressed: () {
               Navigator.pushNamed(context, '/knowledge_base');
             },
-            child: const Icon(Icons.book), //  Иконка книги
+            child: const Icon(Icons.book),
             tooltip: 'База знаний',
-            heroTag: 'knowledge_base_button', // Уникальный тег
+            heroTag: 'knowledge_base_button',
           ),
-          const SizedBox(width: 16), //  Отступ между кнопками
+          const SizedBox(width: 16),
           FloatingActionButton(
             onPressed: () {
               Navigator.pushNamed(context, '/appeals/create').then((value) {
                 if (value == true) {
-                  // Если обращение создано
-                  _loadAppeals(); // Обновляем список
+                  _loadAppeals();
                 }
               });
             },
             child: const Icon(Icons.add),
             tooltip: 'Создать обращение',
-            heroTag: 'create_appeal_button', // Уникальный тег
+            heroTag: 'create_appeal_button',
           ),
         ],
       ),

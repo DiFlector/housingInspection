@@ -7,18 +7,18 @@ class MessageProvider with ChangeNotifier {
   List<Message> _messages = [];
   bool _isLoading = false;
   String? _error;
-  int? _lastMessageId; //  ДОБАВЛЯЕМ
+  int? _lastMessageId;
 
   List<Message> get messages => _messages;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  bool _hasNewMessages = false; //  ДОБАВЛЯЕМ ФЛАГ
-  bool get hasNewMessages => _hasNewMessages; //Геттер
+  bool _hasNewMessages = false;
+  bool get hasNewMessages => _hasNewMessages;
 
   set hasNewMessages(bool value) {
     _hasNewMessages = value;
-    notifyListeners(); //  Уведомляем слушателей об изменении
+    notifyListeners();
   }
 
   Future<void> fetchMessages(int appealId, {int skip = 0, int limit = 100}) async {
@@ -27,7 +27,6 @@ class MessageProvider with ChangeNotifier {
     if (_lastMessageId == null) {
       _messages = [];
     }
-    // notifyListeners();  //  УБИРАЕМ отсюда!
 
     try {
       final newMessages = await _apiService.getMessages(
@@ -36,7 +35,7 @@ class MessageProvider with ChangeNotifier {
       if (newMessages.isNotEmpty) {
         _messages.addAll(newMessages);
         _lastMessageId = newMessages.last.id;
-        _hasNewMessages = true; //  УСТАНАВЛИВАЕМ ФЛАГ
+        _hasNewMessages = true;
         notifyListeners();
       }
     } catch (e) {
@@ -53,7 +52,7 @@ class MessageProvider with ChangeNotifier {
       final newMessage = await _apiService.createMessage(appealId, content, filePaths);
       _messages.add(newMessage);
       _lastMessageId = newMessage.id;
-      _hasNewMessages = true; //  УСТАНАВЛИВАЕМ ФЛАГ
+      _hasNewMessages = true;
       notifyListeners();
     }
     catch (e){
@@ -64,7 +63,6 @@ class MessageProvider with ChangeNotifier {
   void clearMessages() {
     _messages = [];
     _lastMessageId = null;
-    _hasNewMessages = false; // Сбрасываем
-    // notifyListeners();  // НЕ НУЖНО
+    _hasNewMessages = false;
   }
 }

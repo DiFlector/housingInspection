@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:housing_inspection_client/models/user.dart';
 import 'package:housing_inspection_client/providers/user_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:housing_inspection_client/providers/auth_provider.dart';

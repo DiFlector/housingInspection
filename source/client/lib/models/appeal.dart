@@ -9,7 +9,7 @@ class Appeal {
   final String? description;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final List<String>? filePaths; //  Изменяем тип
+  final List<String>? filePaths;
   final int? fileSize;
   final String? fileType;
   final User? user;
@@ -39,13 +39,12 @@ class Appeal {
       description: json['description'],
       createdAt: DateTime.parse(json['created_at']),
       updatedAt: DateTime.parse(json['updated_at']),
-      filePaths: (json['file_paths'] as List<dynamic>?)?.map((e) => e as String).toList(), //  Обрабатываем как список
+      filePaths: (json['file_paths'] as List<dynamic>?)?.map((e) => e as String).toList(),
       fileSize: json['file_size'],
       fileType: json['file_type'],
       user: json['user'] != null ? User.fromJson(json['user']) : null,
     );
   }
-// Метод toJson() нужен для отправки данных на сервер.
   Map<String, dynamic> toJson() {
     return {
       'id': id,

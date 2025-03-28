@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:housing_inspection_client/services/api_service.dart';
-import 'package:path/path.dart' as p; // Импортируем path
+import 'package:path/path.dart' as p;
 
 class KnowledgeBaseProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -14,14 +14,13 @@ class KnowledgeBaseProvider with ChangeNotifier {
 
   Future<void> fetchCategoryFiles(String category) async {
     _isLoading = true;
-    _error = null; // Сбрасываем ошибку перед новым запросом
-    _fileUrls = null; // Очищаем предыдущий список
+    _error = null;
+    _fileUrls = null;
     notifyListeners();
 
     try {
       final List<String> fetchedUrls =
       await _apiService.getKnowledgeBaseCategoryFiles(category);
-      // ФИЛЬТРУЕМ СПИСОК ПЕРЕД СОХРАНЕНИЕМ В _fileUrls:
       _fileUrls =
           fetchedUrls.where((url) => !p.basename(url).endsWith('/')).toList();
     } catch (e) {

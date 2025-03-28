@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "768400270898",
+    "project_id": "housing-inspection-0",
+    "storage_bucket": "housing-inspection-0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:768400270898:android:160e280a148fc77e1a7e2b",
+        "android_client_info": {
+          "package_name": "com.housing.housing_inspection_client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBF3G7pSdhjx_6M3S6B5-6WJsfZXxq76eg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

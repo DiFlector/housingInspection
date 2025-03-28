@@ -34,6 +34,39 @@ class ApiService {
     return newPath;
   }
 
+  Future<void> registerDeviceToken(String fcmToken, String? deviceType) async {
+    final token = await _getToken();
+    if (token == null || JwtDecoder.isExpired(token)) {
+      print("Cannot register device token: User not logged in or token expired.");
+      return;
+    }
+
+    final Map<String, String> headers = {};
+    headers['Authorization'] = 'Bearer $token';
+    headers['Content-Type'] = 'application/json';
+
+    final body = jsonEncode({
+      'fcm_token': fcmToken,
+      if (deviceType != null) 'device_type': deviceType,
+    });
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/users/me/devices'),
+        headers: headers,
+        body: body,
+      );
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        print('Device token registered successfully.');
+      } else {
+        print('Failed to register device token: ${response.statusCode} ${response.body}');
+      }
+    } catch (e) {
+      print('Error registering device token: $e');
+    }
+  }
+
   // --- Appeals ---
 
   Future<List<Appeal>> getAppeals({
@@ -60,9 +93,6 @@ class ApiService {
       'sort_order': sortOrder,
       if (statusId != null) 'status_id': statusId.toString(),
       if (categoryId != null) 'category_id': categoryId.toString(),
-      //  УДАЛЯЕМ start_date и end_date:
-      // if (startDate != null) 'start_date': startDate.toIso8601String(),
-      // if (endDate != null) 'end_date': endDate.toIso8601String(),
     };
 
     final Uri uri = Uri.parse('$baseUrl/appeals/').replace(
@@ -79,7 +109,7 @@ class ApiService {
       return data.map((json) => Appeal.fromJson(json)).toList();
     } else {
       throw ApiException(
-          'Failed to load appeals: ${response.statusCode}'); //Добавили
+          'Failed to load appeals: ${response.statusCode}');
     }
   }
 
@@ -114,7 +144,7 @@ class ApiService {
       return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       throw ApiException(
-          'Failed to load appeal', response.statusCode); //Добавили
+          'Failed to load appeal', response.statusCode);
     }
   }
 
@@ -178,13 +208,11 @@ class ApiService {
     }
     headers['Content-Type'] = 'application/json';
 
-    // Отправляем только НУЖНЫЕ поля в JSON
     final body = jsonEncode({
       'address': appeal.address,
       'category_id': appeal.categoryId,
       'description': appeal.description,
       'status_id': appeal.statusId,
-      // 'file_paths': jsonEncode(appeal.filePaths ?? []), // НЕ ОТПРАВЛЯЕМ file_paths
     });
 
     final response = await http.put(
@@ -197,12 +225,11 @@ class ApiService {
       return Appeal.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
     } else {
       print("Update Appeal Error Body: ${response.body}");
-      try { // Добавляем try-catch для jsonDecode
+      try {
         final errorData = jsonDecode(utf8.decode(response.bodyBytes));
         final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to update appeal';
         throw ApiException(errorMessage, response.statusCode);
       } catch (e) {
-        // Если тело ответа не JSON, возвращаем общую ошибку
         throw ApiException('Failed to update appeal: ${response.statusCode}', response.statusCode);
       }
     }
@@ -631,7 +658,7 @@ class ApiService {
     }
   }
 
-  Future<List<Message>> getMessages(int appealId, {int skip = 0, int limit = 100, int? lastMessageId}) async { //  Добавили lastMessageId
+  Future<List<Message>> getMessages(int appealId, {int skip = 0, int limit = 100, int? lastMessageId}) async {
     final token = await _getToken();
     if (token == null || JwtDecoder.isExpired(token)) {
       MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
@@ -645,7 +672,7 @@ class ApiService {
     final queryParameters = <String, String>{
       'skip': skip.toString(),
       'limit': limit.toString(),
-      if (lastMessageId != null) 'last_message_id': lastMessageId.toString(), //  ПРАВИЛЬНО передаём
+      if (lastMessageId != null) 'last_message_id': lastMessageId.toString(),
     };
     final response = await http.get(
         Uri.parse('$baseUrl/appeals/$appealId/messages').replace(queryParameters: queryParameters),
@@ -675,7 +702,7 @@ class ApiService {
     final response = await http.post(
       Uri.parse('$baseUrl/appeals/$appealId/messages'),
       headers: headers,
-      body: jsonEncode({'content': content}), //  ВЕРНУЛИ КАК БЫЛО
+      body: jsonEncode({'content': content}),
     );
 
     if (response.statusCode == 200) {

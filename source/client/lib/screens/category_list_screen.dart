@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:housing_inspection_client/models/appeal_category.dart';
 import 'package:housing_inspection_client/providers/auth_provider.dart';
 import 'package:housing_inspection_client/providers/category_provider.dart';
 import 'package:housing_inspection_client/screens/category_edit_screen.dart';
