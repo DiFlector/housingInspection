@@ -85,3 +85,13 @@ class Message(Base):
 
     def __repr__(self):
         return f"<Message(id={self.id}, appeal_id={self.appeal_id}, sender_id={self.sender_id})>"
+    
+class DeviceToken(Base):
+    __tablename__ = "device_tokens"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    fcm_token = Column(String, nullable=False, unique=True)
+    device_type = Column(String, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User")

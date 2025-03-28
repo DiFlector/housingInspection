@@ -114,3 +114,7 @@ class Message(MessageBase):
 
     class Config:
         from_attributes = True
+
+class DeviceTokenCreate(BaseModel):
+    fcm_token: str
+    device_type: Optional[str] = None
