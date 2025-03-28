@@ -31,6 +31,7 @@ services:
       - YC_AWS_ACCESS_KEY_ID=${YC_AWS_ACCESS_KEY_ID}
       - YC_AWS_SECRET_ACCESS_KEY=${YC_AWS_SECRET_ACCESS_KEY}
       - YC_BUCKET_NAME=${YC_BUCKET_NAME}
+      - FIREBASE_CREDENTIALS_PATH=/app/firebase-adminsdk.json
     depends_on:
       - db
     volumes:
