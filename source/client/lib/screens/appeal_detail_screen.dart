@@ -341,11 +341,19 @@ class _AppealDetailScreenState extends State<AppealDetailScreen> {
                           return InkWell(
                             onTap: () async {
                               final uri = Uri.tryParse(path);
-                              if (uri != null && await canLaunchUrl(uri)) {
-                                await launchUrl(uri);
-                              } else {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось открыть ссылку: $path')));
-                                print('Could not launch $path');
+                              if (uri == null) {
+                                print('Invalid URL: $path');
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Некорректная ссылка на файл')));
+                                return;
+                              }
+                              try {
+                                bool launched = await launchUrl(uri);
+                                if (!launched && mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось открыть ссылку: $path')));
+                                }
+                              } catch (e) {
+                                print('Error launching URL $uri: $e');
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка при открытии ссылки: $e')));
                               }
                             },
                             child: Padding(
@@ -651,10 +659,19 @@ class MessageBubble extends StatelessWidget {
                       child: InkWell(
                         onTap: () async {
                           final uri = Uri.tryParse(filePath);
-                          if (uri != null && await canLaunchUrl(uri)) {
-                            await launchUrl(uri);
-                          } else {
-                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось открыть файл: $filePath')));
+                          if (uri == null) {
+                            print('Invalid URL: $filePath');
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Некорректная ссылка на файл')));
+                            return;
+                          }
+                          try {
+                            bool launched = await launchUrl(uri);
+                            if (!launched && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Не удалось открыть ссылку: $filePath')));
+                            }
+                          } catch (e) {
+                            print('Error launching URL $uri: $e');
+                            if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка при открытии ссылки: $e')));
                           }
                         },
                         child: Row(
