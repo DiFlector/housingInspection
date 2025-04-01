@@ -7,13 +7,16 @@ import 'package:housing_inspection_client/models/user.dart';
 import 'package:housing_inspection_client/models/message.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:mime/mime.dart';
 
 import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../main.dart';
-import 'package:housing_inspection_client/models/api_exception.dart'; //  Импортируем
+import 'package:housing_inspection_client/models/api_exception.dart';
+
+import 'package:http_parser/http_parser.dart';
 
 class ApiService {
   final String baseUrl = 'http://5.35.125.180:8000';
@@ -693,25 +696,74 @@ class ApiService {
       MyApp.navigatorKey.currentState?.pushNamedAndRemoveUntil('/auth', (route) => false);
       throw ApiException("Authentication required");
     }
-    final Map<String,String> headers = {};
-    if(token != null){
-      headers.addAll({'Authorization': 'Bearer $token'});
+
+    final Map<String, String> headers = {};
+    headers['Authorization'] = 'Bearer $token';
+    // Content-Type будет установлен автоматически для multipart/form-data
+
+    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/appeals/$appealId/messages'));
+    request.headers.addAll(headers);
+
+    // Добавляем текстовое поле content
+    request.fields['content'] = content;
+
+    // Добавляем файлы
+    for (var filePath in filePaths) {
+      try {
+        final file = File(filePath);
+        if (!await file.exists()) {
+          print("File does not exist, skipping: $filePath");
+          continue; // Пропускаем несуществующий файл
+        }
+        // Определяем MIME-тип файла
+        final String? mimeType = lookupMimeType(filePath);
+        final MediaType? contentType = mimeType != null ? MediaType.parse(mimeType) : null;
+
+        print('Attaching file: $filePath with ContentType: ${contentType?.toString() ?? 'unknown'}');
+
+        request.files.add(
+            await http.MultipartFile.fromPath(
+              'files', // Имя поля должно совпадать с ожидаемым на бэкенде
+              filePath,
+              filename: p.basename(filePath), // Используем оригинальное имя файла
+              contentType: contentType, // Передаем определенный ContentType
+            )
+        );
+      } catch (e) {
+        print("Error adding file $filePath to request: $e");
+        // Решаем, что делать при ошибке добавления файла - пока пропускаем
+      }
     }
 
-    headers.addAll({'Content-Type': 'application/json'});
-    final response = await http.post(
-      Uri.parse('$baseUrl/appeals/$appealId/messages'),
-      headers: headers,
-      body: jsonEncode({'content': content}),
-    );
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
-    if (response.statusCode == 200) {
-      return Message.fromJson(jsonDecode(utf8.decode(response.bodyBytes)));
-    } else {
-      print(response.body);
-      final errorData = jsonDecode(utf8.decode(response.bodyBytes));
-      final errorMessage = errorData.containsKey('detail') ? errorData['detail'] : 'Failed to create message';
-      throw ApiException(errorMessage, response.statusCode);
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(utf8.decode(response.bodyBytes));
+        return Message.fromJson(responseData);
+      } else {
+        print("Create Message Error Status: ${response.statusCode}");
+        print("Create Message Error Body: ${response.body}");
+        String errorMessage = 'Failed to create message';
+        try {
+          final errorData = jsonDecode(utf8.decode(response.bodyBytes));
+          errorMessage = errorData.containsKey('detail')
+              ? (errorData['detail'] is List
+              ? errorData['detail'][0]['msg'] // Часто FastAPI возвращает список ошибок
+              : errorData['detail'])
+              : 'Failed to create message';
+        } catch (e) {
+          // Если тело ответа не JSON
+          errorMessage = response.body;
+        }
+
+        throw ApiException(errorMessage, response.statusCode);
+      }
+    } catch (e) {
+      print("Error sending create message request: $e");
+      if (e is ApiException) rethrow;
+      throw ApiException("Ошибка сети при отправке сообщения: $e");
     }
   }
 

@@ -23,6 +23,14 @@ class AppealProvider with ChangeNotifier {
   int? get statusId => _statusId;
   int? get categoryId => _categoryId;
 
+  Appeal? getAppealById(int id) {
+    try {
+      return _appeals.firstWhere((appeal) => appeal.id == id);
+    } catch (e) {
+      return null;
+    }
+  }
+
   void setStatusFilter(int? statusId) {
     _statusId = statusId;
     notifyListeners();
@@ -74,7 +82,7 @@ class AppealProvider with ChangeNotifier {
   Future<void> addAppeal(Appeal newAppeal, List<String> filePaths) async {
     try {
       final createdAppeal = await _apiService.createAppeal(newAppeal, filePaths);
-      _appeals.add(createdAppeal);
+      _appeals.insert(0, createdAppeal);
       notifyListeners();
     } on ApiException catch (e){
       rethrow;
@@ -90,8 +98,10 @@ class AppealProvider with ChangeNotifier {
       final index = _appeals.indexWhere((appeal) => appeal.id == appealId);
       if (index != -1) {
         _appeals[index] = updatedAppeal;
-        notifyListeners();
+      } else {
+        _appeals.insert(0, updatedAppeal);
       }
+      notifyListeners();
     } on ApiException catch (e) {
       rethrow;
     }
@@ -100,19 +110,6 @@ class AppealProvider with ChangeNotifier {
       rethrow;
     }
   }
-  // Future<void> deleteAppeal(int id) async {
-  //   try {
-  //     await _apiService.deleteAppeal(id);
-  //     _appeals.removeWhere((appeal) => appeal.id == id);
-  //     notifyListeners();
-  //   } on ApiException catch (e) {
-  //     rethrow;
-  //   }
-  //   catch (e){
-  //     print('Error delete appeal: $e');
-  //     rethrow;
-  //   }
-  // }
 
   Future<void> updateAppealData(Appeal updatedAppeal) async {
     try{

@@ -18,6 +18,7 @@ import 'package:housing_inspection_client/providers/knowledge_base_provider.dart
 import 'package:housing_inspection_client/screens/knowledge_base_category_screen.dart';
 import 'package:housing_inspection_client/screens/knowledge_base_screen.dart';
 import 'package:housing_inspection_client/providers/message_provider.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -42,6 +43,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await initializeDateFormatting('ru_RU', null);
+
   await Firebase.initializeApp();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
