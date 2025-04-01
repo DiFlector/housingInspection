@@ -3,13 +3,13 @@ from firebase_admin import credentials, messaging
 import os
 from fastapi import FastAPI, Depends, HTTPException, status, APIRouter, Query, UploadFile, File, Form
 from sqlalchemy import create_engine, text, desc, asc
-from sqlalchemy.orm import sessionmaker, Session
-from typing import List, Optional
+from sqlalchemy.orm import sessionmaker, Session, selectinload
+from typing import List, Optional, Annotated
 from fastapi.middleware.cors import CORSMiddleware
 from . import models, schemas
 from .auth import get_password_hash, verify_password, create_access_token, decode_token
 from .models import Base, Message
-from .schemas import Message, MessageCreate
+from .schemas import Message
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from datetime import timedelta, datetime
@@ -20,6 +20,10 @@ from botocore.exceptions import ClientError
 from io import BytesIO
 import re
 import json
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 FIREBASE_CREDENTIALS_PATH = os.environ.get("FIREBASE_CREDENTIALS_PATH")
 firebase_project_id = None
@@ -460,12 +464,16 @@ def read_appeals(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
+    query = db.query(models.Appeal).options(
+        selectinload(models.Appeal.user),
+        selectinload(models.Appeal.status),
+        selectinload(models.Appeal.category)
+    )
+
     if current_user.role == "citizen":
-        query = db.query(models.Appeal).filter(models.Appeal.user_id == current_user.id)
-    elif current_user.role == "inspector":
-        query = db.query(models.Appeal)
-    else:
-        raise HTTPException(status_code=403, detail="Not enough permissions")
+        query = query.filter(models.Appeal.user_id == current_user.id)
+    elif current_user.role != "inspector":
+         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     if status_id is not None:
         query = query.filter(models.Appeal.status_id == status_id)
@@ -473,44 +481,54 @@ def read_appeals(
         query = query.filter(models.Appeal.category_id == category_id)
 
     if sort_by == "address":
-        if sort_order == "asc":
-            query = query.order_by(asc(models.Appeal.address))
-        else:
-            query = query.order_by(desc(models.Appeal.address))
+        order_column = models.Appeal.address
     elif sort_by == "status_id":
-        if sort_order == "asc":
-            query = query.order_by(asc(models.Appeal.status_id))
-        else:
-            query = query.order_by(desc(models.Appeal.status_id))
+        order_column = models.Appeal.status_id
     elif sort_by == "category_id":
-        if sort_order == "asc":
-            query = query.order_by(asc(models.Appeal.category_id))
-        else:
-            query = query.order_by(desc(models.Appeal.category_id))
+        order_column = models.Appeal.category_id
     else:
-        if sort_order == "asc":
-            query = query.order_by(asc(models.Appeal.created_at))
-        else:
-            query = query.order_by(desc(models.Appeal.created_at))
+        order_column = models.Appeal.created_at
+
+    if sort_order == "asc":
+        query = query.order_by(asc(order_column))
+    else:
+        query = query.order_by(desc(order_column))
 
     appeals = query.offset(skip).limit(limit).all()
+
     for appeal in appeals:
-        appeal.file_paths = json.loads(appeal.file_paths) if appeal.file_paths else []
+        if appeal.file_paths:
+            try:
+                appeal.file_paths = json.loads(appeal.file_paths)
+            except json.JSONDecodeError:
+                appeal.file_paths = []
+        else:
+            appeal.file_paths = []
 
     return appeals
 
 @router.get("/appeals/{appeal_id}", response_model=schemas.Appeal)
 def read_appeal(appeal_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
-    db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
+    db_appeal = db.query(models.Appeal).options(
+        selectinload(models.Appeal.user),
+        selectinload(models.Appeal.status),
+        selectinload(models.Appeal.category),
+        selectinload(models.Appeal.messages).selectinload(models.Message.sender)
+    ).filter(models.Appeal.id == appeal_id).first()
+
     if db_appeal is None:
         raise HTTPException(status_code=404, detail="Appeal not found")
     if current_user.role == "citizen" and db_appeal.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to access this appeal")
 
     if db_appeal.file_paths:
-        db_appeal.file_paths = json.loads(db_appeal.file_paths)
+        try:
+            temp_files = json.loads(db_appeal.file_paths)
+        except json.JSONDecodeError:
+             print(f"Error decoding appeal file_paths JSON for appeal ID {db_appeal.id}")
+             pass
     else:
-         db_appeal.file_paths = []
+         pass
 
     return db_appeal
 
@@ -668,60 +686,192 @@ def read_messages(
 @router.post("/appeals/{appeal_id}/messages", response_model=schemas.Message)
 async def create_message(
     appeal_id: int,
-    message: schemas.MessageCreate,
+    content: Annotated[Optional[str], Form()] = None,
+    files: Annotated[List[UploadFile], File()] = [],
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user),
+    s3_client = Depends(get_s3_client)
 ):
-    db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
+    logger.info(f"--- Handling create_message for appeal {appeal_id} by user {current_user.username} ---")
+    logger.info(f"Received content via Form: '{content}' (Type: {type(content)})")
+    logger.info(f"Received files via File: Count={len(files)}")
+    for i, f in enumerate(files):
+        logger.info(f"  File {i}: filename='{f.filename}', content_type='{f.content_type}'")
+
+    if not content and not files:
+         logger.warning("Attempted to send an empty message (no content, no files).")
+         raise HTTPException(status_code=400, detail="Cannot send an empty message.")
+
+    message_content = content if content is not None else ""
+    logger.info(f"Using message_content: '{message_content}' for DB")
+
+    db_appeal = db.query(models.Appeal).options(
+        selectinload(models.Appeal.user)
+    ).filter(models.Appeal.id == appeal_id).first()
+
     if db_appeal is None:
+        logger.error(f"Appeal with id={appeal_id} not found.")
         raise HTTPException(status_code=404, detail="Appeal not found")
 
     if current_user.id != db_appeal.user_id and current_user.role != "inspector":
+        logger.warning(f"User {current_user.username} not authorized for appeal {appeal_id}.")
         raise HTTPException(status_code=403, detail="Not authorized to send messages to this appeal")
 
     db_message = models.Message(
         appeal_id=appeal_id,
         sender_id=current_user.id,
-        content=message.content,
+        content=message_content,
+        file_paths=None
     )
     db.add(db_message)
-    db.commit()
-    db.refresh(db_message)
+    try:
+        db.flush()
+        db.refresh(db_message)
+        logger.info(f"Created initial message record with id={db_message.id}")
+    except Exception as e:
+        logger.error(f"Error flushing/refreshing initial message: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Ошибка создания записи сообщения в БД")
 
-    notification_data = {'appeal_id': str(appeal_id)}
-    sender_name = current_user.username
+    saved_file_paths = []
+    if files:
+        bucket_name = os.environ.get("YC_BUCKET_NAME")
+        appeal_user = db_appeal.user
+        if not appeal_user:
+             logger.error("Appeal user not found after loading appeal (should not happen).")
+             db.rollback()
+             raise HTTPException(status_code=500, detail="Appeal user not found")
 
-    if current_user.id == db_appeal.user_id:
-        inspectors = db.query(models.User).filter(models.User.role == 'inspector', models.User.is_active == True).all()
-        if inspectors:
-            notification_title = "Новое сообщение от гражданина"
-            notification_body = f"Пользователь {sender_name} отправил сообщение по обращению '{db_appeal.address}'."
-            for inspector in inspectors:
-                if inspector.id != current_user.id:
-                    await send_fcm_notification(
-                        user_id=inspector.id,
-                        title=notification_title,
-                        body=notification_body,
-                        data=notification_data,
-                        db=db
+        user_folder = sanitize_filename(appeal_user.username)
+        appeal_folder_name = f"{db_appeal.id}_{sanitize_filename(db_appeal.address)}"
+
+        chat_folder_prefix = f"{user_folder}/{appeal_folder_name}/chat/{db_message.id}/"
+        logger.info(f"Attempting to upload files to prefix: {chat_folder_prefix}")
+
+        for file in files:
+            if file.filename:
+                try:
+                    unique_filename = f"{uuid.uuid4()}_{sanitize_filename(file.filename)}"
+                    file_key = f"{chat_folder_prefix}{unique_filename}"
+
+                    file.file.seek(0)
+                    s3_client.upload_fileobj(
+                        Fileobj=file.file,
+                        Bucket=bucket_name,
+                        Key=file_key,
+                        ExtraArgs={'ACL': 'public-read'}
                     )
-    elif current_user.role == 'inspector':
-        user_id_to_notify = db_appeal.user_id
-        if user_id_to_notify != current_user.id:
-            notification_title = "Новое сообщение"
-            notification_body = f"Инспектор {sender_name} отправил сообщение по вашему обращению '{db_appeal.address}'."
-            await send_fcm_notification(
-                user_id=user_id_to_notify,
-                title=notification_title,
-                body=notification_body,
-                data=notification_data,
-                db=db
-            )
+                    file_url = f"https://storage.yandexcloud.net/{bucket_name}/{file_key}"
+                    saved_file_paths.append(file_url)
+                    logger.info(f"Successfully uploaded '{file.filename}' to {file_url}")
+                except ClientError as e:
+                    logger.error(f"S3 ClientError uploading '{file.filename}': {e}", exc_info=True)
+                    db.rollback()
+                    raise HTTPException(status_code=500, detail=f"Ошибка S3 при загрузке файла '{file.filename}': {e}")
+                except Exception as e:
+                     logger.error(f"Unexpected error uploading '{file.filename}': {e}", exc_info=True)
+                     db.rollback()
+                     raise HTTPException(status_code=500, detail=f"Ошибка при загрузке файла '{file.filename}': {e}")
+                finally:
+                    await file.close()
+                    logger.info(f"Closed file object for '{file.filename}'")
+            else:
+                 logger.warning("Skipping file with empty filename.")
 
-    if db_message.file_paths:
-        db_message.file_paths = json.loads(db_message.file_paths)
+    if saved_file_paths:
+        try:
+            message_to_update = db.query(models.Message).filter(models.Message.id == db_message.id).first()
+            if message_to_update:
+                 message_to_update.file_paths = json.dumps(saved_file_paths)
+                 logger.info(f"Updating message id={message_to_update.id} with file paths: {message_to_update.file_paths}")
+                 db.add(message_to_update)
+            else:
+                 logger.error(f"Could not find message id={db_message.id} to update file paths.")
+                 db.rollback()
+                 raise HTTPException(status_code=500, detail="Ошибка обновления путей к файлам сообщения")
+        except Exception as e:
+            logger.error(f"Error setting file paths for message id={db_message.id}: {e}", exc_info=True)
+            db.rollback()
+            raise HTTPException(status_code=500, detail="Ошибка сохранения путей к файлам")
 
-    return db_message
+
+    try:
+        db.commit()
+        db.refresh(db_message)
+        logger.info(f"Successfully committed message id={db_message.id}")
+    except Exception as e:
+        logger.error(f"Error committing message transaction for id={db_message.id}: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Ошибка сохранения сообщения в БД")
+
+    final_message = db.query(models.Message).options(
+         selectinload(models.Message.sender)
+    ).filter(models.Message.id == db_message.id).first()
+
+    if not final_message:
+         logger.error(f"Could not reload message id={db_message.id} after commit.")
+
+         raise HTTPException(status_code=500, detail="Не удалось получить сохраненное сообщение")
+
+    try:
+        notification_data = {'appeal_id': str(appeal_id)}
+        sender_name = current_user.username
+        notification_body_suffix = " (с файлами)" if final_message.file_paths else ""
+
+        if current_user.id == db_appeal.user_id:
+            inspectors = db.query(models.User).filter(models.User.role == 'inspector', models.User.is_active == True).all()
+            if inspectors:
+                notification_title = "Новое сообщение от гражданина"
+                notification_body = f"Пользователь {sender_name} отправил сообщение по обращению '{db_appeal.address}'.{notification_body_suffix}"
+                for inspector in inspectors:
+                    if inspector.id != current_user.id:
+                        await send_fcm_notification(
+                            user_id=inspector.id, title=notification_title, body=notification_body, data=notification_data, db=db
+                        )
+        elif current_user.role == 'inspector':
+            recipient_user_id = db_appeal.user_id
+            if recipient_user_id != current_user.id:
+                notification_title = "Новое сообщение от инспектора"
+                notification_body = f"Инспектор {sender_name} отправил сообщение по вашему обращению '{db_appeal.address}'.{notification_body_suffix}"
+                await send_fcm_notification(
+                    user_id=recipient_user_id, title=notification_title, body=notification_body, data=notification_data, db=db
+                )
+        logger.info(f"Notifications initiated for message id={final_message.id}")
+    except Exception as e:
+        logger.error(f"Error sending FCM notification for message id={final_message.id}: {e}", exc_info=True)
+
+    try:
+        decoded_paths_list: Optional[List[str]] = None
+
+        if final_message.file_paths:
+            try:
+                decoded_paths = json.loads(final_message.file_paths)
+                if isinstance(decoded_paths, list):
+                    decoded_paths_list = [str(item) for item in decoded_paths]
+                    logger.info(f"Successfully decoded file_paths for message {final_message.id}")
+                else:
+                    logger.warning(f"Decoded file_paths for message {final_message.id} is not a list: {type(decoded_paths)}")
+                    decoded_paths_list = []
+            except json.JSONDecodeError:
+                logger.error(f"Error decoding file_paths JSON for message ID {final_message.id}: '{final_message.file_paths}'", exc_info=True)
+                decoded_paths_list = []
+
+        api_response_model = schemas.Message(
+            id=final_message.id,
+            appeal_id=final_message.appeal_id,
+            sender_id=final_message.sender_id,
+            content=final_message.content,
+            created_at=final_message.created_at,
+            sender=final_message.sender,
+            file_paths=decoded_paths_list
+        )
+
+        logger.info(f"Successfully created Pydantic model instance for message id={final_message.id}")
+        return api_response_model
+
+    except Exception as e:
+        logger.error(f"Error creating/validating Pydantic response model for message id={final_message.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Ошибка формирования ответа сервера")
 
 @router.post("/appeal_statuses/", response_model=schemas.AppealStatus)
 def create_appeal_status(status: schemas.AppealStatusCreate, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
@@ -763,7 +913,7 @@ def update_appeal_status(status_id: int, status: schemas.AppealStatusCreate, db:
     return db_status
 
 @router.delete("/appeal_statuses/{status_id}")
-def delete_appeal_status(status_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):# Исправлено
+def delete_appeal_status(status_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_active_user)):
     if current_user.role != "inspector":
         raise HTTPException(status_code=403, detail="Not authorized")
     db_status = db.query(models.AppealStatus).filter(models.AppealStatus.id == status_id).first()
