@@ -671,31 +671,25 @@ def read_messages(
     current_user: models.User = Depends(get_current_active_user)
 ):
     logger.info(f"--- Handling read_messages for appeal {appeal_id} (last_id={last_message_id}) ---")
-    # Проверяем существование обращения и права доступа (хотя бы базовые)
     db_appeal = db.query(models.Appeal).filter(models.Appeal.id == appeal_id).first()
     if db_appeal is None:
         logger.warning(f"read_messages: Appeal {appeal_id} not found.")
         raise HTTPException(status_code=404, detail="Appeal not found")
 
-    # Проверка: пользователь должен быть либо автором обращения, либо инспектором
     if current_user.role != "inspector" and current_user.id != db_appeal.user_id:
          logger.warning(f"read_messages: User {current_user.username} not authorized for appeal {appeal_id}.")
          raise HTTPException(status_code=403, detail="Not authorized to view messages for this appeal")
 
-    # Строим запрос к сообщениям
     query = db.query(models.Message).options(
-        selectinload(models.Message.sender) # Загружаем отправителя сразу
+        selectinload(models.Message.sender)
     ).filter(models.Message.appeal_id == appeal_id)
 
-    # Фильтр по последнему полученному ID для Polling
     if last_message_id is not None:
         query = query.filter(models.Message.id > last_message_id)
 
-    # Применяем сортировку (по ID или created_at), пагинацию
     messages_orm = query.order_by(models.Message.id).offset(skip).limit(limit).all()
     logger.info(f"read_messages: Found {len(messages_orm)} messages in DB.")
 
-    # --- Подготовка ответа ---
     response_list = []
     for msg_orm in messages_orm:
         decoded_paths_list: Optional[List[str]] = None
@@ -711,7 +705,6 @@ def read_messages(
                 logger.error(f"Error decoding file_paths JSON for message ID {msg_orm.id}: '{msg_orm.file_paths}'", exc_info=True)
                 decoded_paths_list = []
 
-        # Создаем Pydantic модель вручную
         try:
             msg_pydantic = schemas.Message(
                 id=msg_orm.id,
@@ -719,19 +712,15 @@ def read_messages(
                 sender_id=msg_orm.sender_id,
                 content=msg_orm.content,
                 created_at=msg_orm.created_at,
-                sender=msg_orm.sender, # Передаем загруженный объект sender
-                file_paths=decoded_paths_list # Передаем подготовленный список
+                sender=msg_orm.sender,
+                file_paths=decoded_paths_list
             )
             response_list.append(msg_pydantic)
         except Exception as e:
-            # Логируем ошибку валидации Pydantic для конкретного сообщения, но не прерываем весь запрос
             logger.error(f"Error validating message id={msg_orm.id} with Pydantic schema: {e}", exc_info=True)
-            # Можно добавить это сообщение в ответ с пометкой об ошибке,
-            # либо просто пропустить его. Пока пропускаем.
             pass
 
     logger.info(f"read_messages: Returning {len(response_list)} messages in response.")
-    # Возвращаем список готовых Pydantic моделей
     return response_list
 
 @router.post("/appeals/{appeal_id}/messages", response_model=schemas.Message)
