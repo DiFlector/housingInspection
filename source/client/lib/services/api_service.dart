@@ -19,7 +19,7 @@ import 'package:housing_inspection_client/models/api_exception.dart';
 import 'package:http_parser/http_parser.dart';
 
 class ApiService {
-  final String baseUrl = 'http://5.35.125.180:8000';
+  final String baseUrl = 'http://91.200.84.225:8000';
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
